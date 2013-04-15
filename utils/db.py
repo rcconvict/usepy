@@ -2,6 +2,40 @@
 import MySQLdb as mdb
 import helper as helper
 
+def activateGroup(group):
+	'''Activate a group. Arguments:
+	- group: group name (str)
+	Returns:
+	- bool'''
+	mysqlInfo = helper.getMySQLInfo()
+	conn = mdb.connect(*mysqlInfo)
+	c = conn.cursor()
+	try:
+		c.execute('UPDATE groups SET active = 1 WHERE name = %s', (group))
+	except Exception, e:
+		return False
+	finally:
+		conn.commit()
+		conn.close()
+		return True	
+
+def getActiveGroups():
+	'''Gets a list of active groups. Arguments:
+	- None
+	Returns:
+	- list'''
+	mysqlInfo = helper.getMySQLInfo()
+	conn = mdb.connect(*mysqlInfo)
+	c = conn.cursor()
+	c.execute('SELECT ID FROM groups WHERE active = 1')
+	ret = c.fetchall()
+	conn.close()
+	fmt = []
+	for i in ret:
+		fmt.append(int(i[0]))
+	return fmt
+
+
 def addParts(binaryID, over):
 	'''Add header info to parts. Arguments:
 	- binaryID : the group id (int)
@@ -31,6 +65,20 @@ def getGroupID(group):
 	resp = c.fetchone()
 	conn.close()
 	return int(resp[0])
+
+def getGroupName(group):
+	'''Get the group name from ID. Arguments:
+	- group: group id (int)
+	Returns:
+	- group: group name (str)'''
+	
+	mysqlInfo = helper.getMySQLInfo()
+	conn = mdb.connect(*mysqlInfo)
+	c = conn.cursor()
+	c.execute('SELECT name FROM groups WHERE ID = %s LIMIT 1', (group,))
+	ret = c.fetchone()
+	conn.close()
+	return str(ret[0])
 
 def updateGroup(group, last):
 	'''Update the record for the group. Arguments:
