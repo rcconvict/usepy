@@ -12,7 +12,6 @@ def addParts(binaryID, over):
 	conn.commit()
 	conn.close()
 	
-
 def getGroupID(group):
 	'''Get the binaryID of a group from mysql'''
 	mysqlInfo = helper.getMySQLInfo()
@@ -23,6 +22,14 @@ def getGroupID(group):
 	conn.close()
 	return int(resp[0])
 
+def updateGroup(group, last):
+	'''Update the record for the group'''
+	mysqlInfo = helper.getMySQLInfo()
+	conn = mdb.connect(*mysqlInfo)
+	c = conn.cursor()
+	c.execute('UPDATE groups SET last_record = %s, last_updated = NOW() where ID = %s', (last, group))
+	conn.commit()
+	conn.close()
 
 def getLastArticle(group):
 	'''Get the latest article for a group in the db. Arguments:
