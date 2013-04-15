@@ -3,6 +3,12 @@ import MySQLdb as mdb
 import helper as helper
 
 def addParts(binaryID, over):
+	'''Add header info to parts. Arguments:
+	- binaryID : the group id (int)
+	- over: the overview info from nntp.over() (tuple)
+	Returns:
+	None'''
+
 	mysqlInfo = helper.getMySQLInfo()
 	conn = mdb.connect(*mysqlInfo)
 	c = conn.cursor()
@@ -13,7 +19,11 @@ def addParts(binaryID, over):
 	conn.close()
 	
 def getGroupID(group):
-	'''Get the binaryID of a group from mysql'''
+	'''Get the binaryID of a group from mysql. Arguments:
+	- group: group name (str)
+	Returns:
+	- groupID: id associated with the group (int)'''
+
 	mysqlInfo = helper.getMySQLInfo()
 	conn = mdb.connect(*mysqlInfo)
 	c = conn.cursor()
@@ -23,7 +33,12 @@ def getGroupID(group):
 	return int(resp[0])
 
 def updateGroup(group, last):
-	'''Update the record for the group'''
+	'''Update the record for the group. Arguments:
+	- group: the groupID of the group (int)
+	- last: last record received from server.
+	Returns:
+	None'''
+
 	mysqlInfo = helper.getMySQLInfo()
 	conn = mdb.connect(*mysqlInfo)
 	c = conn.cursor()
@@ -37,6 +52,7 @@ def getLastArticle(group):
 	- group: the group name (str)
 	Returns:
 	- int'''
+
 	mysqlInfo = helper.getMySQLInfo()
 	conn = mdb.connect(*mysqlInfo)
 	c = conn.cursor()
