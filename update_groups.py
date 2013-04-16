@@ -1,7 +1,12 @@
 #!/usr/bin/env python
 import utils.db as db
 import utils.helper as helper
-import sys
+import datetime, sys
+try:
+	from dateutil.parser import parse
+except ImportError:
+	print 'Install the dateutil python package.'
+	sys.exit(-1)
 
 NNTP_INFO = helper.getUsenetInfo()
 socket = helper.con(*NNTP_INFO)
@@ -25,6 +30,12 @@ for i in activeGroups:
 	# get last local article
 	lastDBArticle = db.getLastArticle(gid)			
 
+	toFetch = last - lastDBArticle
+	if toFetch == 0:
+		print 'No articles for %s, skipping.' % groupName
+		db.touchGroup(gid)
+		continue
+
 	# get last 100 articles on server if we don't have any	
 	if lastDBArticle == 0:
 		lastDBArticle = last - 100
@@ -34,7 +45,10 @@ for i in activeGroups:
 	db.addParts(gid, overviews)
 	
 	# update the group with new info
-	db.updateGroup(gid, first, last, 'fixthis', 'fixthis')
+	firstTime = parse(overviews[0][1]['date'])
+	lastTime = parse(overviews[0][-1]['date'])
+	db.updateGroup(gid, first, last, str(firstTime.strftime('%Y-%m-%d %H:%M:%S')), str(lastTime.strftime('%Y-%m-%d %H:%M:%S')))
+
 	
 	# stats
 	print 'Updated group %s' % groupName

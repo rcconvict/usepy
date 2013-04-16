@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import MySQLdb as mdb
 import helper as helper
+import datetime
 
 def activateGroup(group):
 	'''Activate a group. Arguments:
@@ -97,6 +98,20 @@ def getGroupName(group):
 	conn.close()
 	return str(ret[0])
 
+def touchGroup(group):
+	'''Touch the timestamp of last updated. Arguments:
+	- group: the groupID of the group (int)
+	Returns:
+	None'''
+	
+	mysqlInfo = helper.getMySQLInfo()
+	conn = mdb.connect(*mysqlInfo)
+	c = conn.cursor()
+	c.execute('UPDATE groups SET last_updated = NOW() WHERE ID = %s', (group))
+	conn.commit()
+	conn.close()
+	
+
 def updateGroup(group, first, last, first_date, last_date):
 	'''Update the record for the group. Arguments:
 	- group: the groupID of the group (int)
@@ -115,9 +130,9 @@ def updateGroup(group, first, last, first_date, last_date):
 	ret = c.fetchone()
 
 	if int(ret[0]) == 0:
-		c.execute('UPDATE groups SET first_record = %s, last_record = %s, first_record_postdate = NOW(), last_updated = NOW(), last_record_postdate = NOW() where ID = %s', (first, last, group)) 
+		c.execute('UPDATE groups SET first_record = %s, last_record = %s, last_updated = NOW(), first_record_postdate = %s, last_record_postdate = %s where ID = %s', (first, last, first_date, last_date, group)) 
 	else:
-		c.execute('UPDATE groups SET last_record = %s, last_updated = NOW() where ID = %s', (last, group))
+		c.execute('UPDATE groups SET last_record = %s, last_record_postdate = %s,  last_updated = NOW() where ID = %s', (last, last_date, group))
 
 	conn.commit()
 	conn.close()
