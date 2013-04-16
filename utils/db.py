@@ -80,17 +80,28 @@ def getGroupName(group):
 	conn.close()
 	return str(ret[0])
 
-def updateGroup(group, last):
+def updateGroup(group, first, last, first_date, last_date):
 	'''Update the record for the group. Arguments:
 	- group: the groupID of the group (int)
+	- first: the first article we have locally (int)
 	- last: last record received from server.
+	- first_date: the date of the first article we have
+	- last_date: the date of the last article we have 
 	Returns:
 	None'''
 
+	# todo: add actual posted dates
 	mysqlInfo = helper.getMySQLInfo()
 	conn = mdb.connect(*mysqlInfo)
 	c = conn.cursor()
-	c.execute('UPDATE groups SET last_record = %s, last_updated = NOW() where ID = %s', (last, group))
+	c.execute('SELECT first_record FROM groups WHERE active = 1 AND ID = %s', (group))
+	ret = c.fetchone()
+
+	if int(ret[0]) == 0:
+		c.execute('UPDATE groups SET first_record = %s, last_record = %s, first_record_postdate = NOW(), last_updated = NOW(), last_record_postdate = NOW() where ID = %s', (first, last, group)) 
+	else:
+		c.execute('UPDATE groups SET last_record = %s, last_updated = NOW() where ID = %s', (last, group))
+
 	conn.commit()
 	conn.close()
 

@@ -2,7 +2,6 @@
 import utils.db as db
 import utils.helper as helper
 import sys
-from pprint import pprint
 
 NNTP_INFO = helper.getUsenetInfo()
 socket = helper.con(*NNTP_INFO)
@@ -26,7 +25,7 @@ for i in activeGroups:
 	# get last local article
 	lastDBArticle = db.getLastArticle(gid)			
 
-	# get last 100 articles on server if we don't ahve any	
+	# get last 100 articles on server if we don't have any	
 	if lastDBArticle == 0:
 		lastDBArticle = last - 100
 	
@@ -35,13 +34,13 @@ for i in activeGroups:
 	db.addParts(gid, overviews)
 	
 	# update the group with new info
-	db.updateGroup(gid, last)
+	db.updateGroup(gid, first, last, 'fixthis', 'fixthis')
 	
 	# stats
 	print 'Updated group %s' % groupName
 	print 'Last local article num: %s' % lastDBArticle
 	print 'Last server article num: %s' % last
-	print "Added %d parts.\n\n" % (last-lastDBArticle)
+	print "Added %d parts.\n" % (last-lastDBArticle)
 
 
 # CLOSE THE SOCKET FOR THE LOVE OF GOD CLOSE THE FUCKING SOCKET
