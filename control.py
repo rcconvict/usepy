@@ -28,7 +28,7 @@ def main():
 		try:
 			gid = db.getGroupID(group)
 		except TypeError:
-			print 'Group does not seem to exist.'
+			print 'Group does not exist.'
 			sys.exit(-1)
 		db.activateGroup(group)		
 		print '%s activated.' % group
@@ -62,9 +62,9 @@ def main():
 		ret = c.fetchone()
 		conn.close()
 		print 'Group ID: %s' % ret[0]
-		print 'Group is %s' % ('active' if bool(ret[1]) else 'deactivated')
+		print 'Group is %s' % ('active.' if bool(ret[1]) else 'deactivated.')
 		print 'First record and postdate: %s - %s' % (ret[2], ret[3])
-		print 'Last record and posstdate: %s - %s' % (ret[4], ret[5])
+		print 'Last record and postdate: %s - %s' % (ret[4], ret[5])
 		print 'Last updated on %s' % ret[6]
 
 
