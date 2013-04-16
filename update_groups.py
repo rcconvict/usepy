@@ -13,7 +13,7 @@ def main():
 	socket = helper.con(*NNTP_INFO)
 	
 	# get the welcome msg
-	print socket.getwelcome()
+	#print socket.getwelcome()
 	
 	# get list of active groups
 	activeGroups = db.getActiveGroups()
@@ -33,7 +33,7 @@ def main():
 	
 		toFetch = last - lastDBArticle
 		if toFetch == 0:
-			print 'No articles for %s, skipping.' % groupName
+			print 'No new articles for %s, skipping.' % groupName
 			db.touchGroup(gid)
 			continue
 	
