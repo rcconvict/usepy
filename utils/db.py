@@ -19,6 +19,23 @@ def activateGroup(group):
 		conn.close()
 		return True	
 
+def deactivateGroup(group):
+	'''Deactivate a group. Arguments:
+	- group: group name (str)
+	Returns:
+	- bool'''
+	mysqlInfo = helper.getMySQLInfo()
+	conn = mdb.connect(*mysqlInfo)
+	c = conn.cursor()
+	try:
+		c.execute('UPDATE groups SET active = 0 WHERE name = %s', (group))
+	except Exception, e:
+		return False
+	finally:
+		conn.commit()
+		conn.close()
+		return True
+
 def getActiveGroups():
 	'''Gets a list of active groups. Arguments:
 	- None
