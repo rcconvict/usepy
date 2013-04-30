@@ -112,7 +112,7 @@ def touchGroup(group):
 	conn.close()
 	
 
-def updateGroup(group, first, last, first_date, last_date):
+def addArticles(group, first, last, first_date, last_date):
 	'''Update the record for the group. Arguments:
 	- group: the groupID of the group (int)
 	- first: the first article we have locally (int)
