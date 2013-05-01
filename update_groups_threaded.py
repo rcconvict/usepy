@@ -10,7 +10,7 @@ except ImportError:
 	sys.exit(-1)
 
 def worker():
-	while True:
+	#while True:
 		item = q.get()
 		updateGroup(item)
 		q.task_done()
