@@ -8,6 +8,18 @@ except ImportError:
 	print 'Install the dateutil python package.'
 	sys.exit(-1)
 
+def enumerateArticles(start, end, increment):
+	starting = range(start, end, increment)
+	ending = list()
+	for i in starting:
+		if (i+99) <= end:
+			ending.append(i+99)
+		else:
+			rest = end % increment
+			ending.append(i+rest)
+	dictionary = dict(zip(starting, ending))
+	return dictionary
+
 def updateGroup(gid):
 	NNTP_INFO = helper.getUsenetInfo()
 	socket = helper.con(*NNTP_INFO)
@@ -29,17 +41,32 @@ def updateGroup(gid):
 
 	# get last 100 articles on server if we don't have any	
 	if lastDBArticle == 0:
-		lastDBArticle = last - 100
+		lastDBArticle = last - 382
 	
 	# get article headers and add them to the DB
 	# Sometimes get utf-8 decode errors, fix this later
-	try:
-		resp, overviews = socket.over((lastDBArticle, last))
-	except LookupError, e:
-		print 'Unable to update group %s.' % (groupName)
-		print e
-		return
-	db.addParts(gid, overviews)
+	range = lastDBArticle - last
+
+	# only fetch 100 articles at a time in the event that there are a lot of articles
+	# so that we don't chew through memory. Maybe get this part multithreaded later.
+	if range >= 100:
+		toFetch = enumerateArticles(lastDBArticle, last, 100)
+		for key, value in toFetch.items():
+			try:
+				resp, overviews = socket.over((key, value))
+			except LookupError, e:
+				print 'Unable to fetch article range %s-%s for %s.' % (key, value, groupName)
+				pass
+			db.addParts(gid, overviews)
+			del overviews, resp
+	else:
+		try:
+			resp, overviews = socket.over((lastDBArticle, last))
+		except LookupError, e:
+			print 'Unable to update group %s.' % (groupName)
+			print e
+			return
+		db.addParts(gid, overviews)
 	
 	# update the group with new info
 	firstTime = parse(overviews[0][1]['date'])
