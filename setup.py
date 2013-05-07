@@ -111,6 +111,70 @@ try:
 		c.execute(sql)
 		print 'Parts table created.'
 
+	# create binaries table if it doesn't exist
+	c.execute('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_name = %s', (MySQLInfo[3], 'binaries'))
+	ret = c.fetchone()
+	if ret[0] != 1:
+		sql = '''CREATE TABLE `binaries` (
+			`ID` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			`name` varchar(255) COLLATE utf8_unicode_ci NOT NULL DEFAULT '',
+			`fromname` varchar(255) COLLATE utf8_unicode_ci NOT NULL DEFAULT '',
+			`date` datetime DEFAULT NULL,
+			`xref` varchar(255) COLLATE utf8_unicode_ci NOT NULL DEFAULT '',
+			`totalParts` int(11) unsigned NOT NULL DEFAULT '0',
+			`groupID` int(11) unsigned NOT NULL DEFAULT '0',
+			`procstat` int(11) DEFAULT '0',
+			`procattempts` int(11) DEFAULT '0',
+			`categoryID` int(11) DEFAULT NULL,
+			`regexID` int(11) DEFAULT NULL,
+			`reqID` int(11) DEFAULT NULL,
+			`relpart` int(11) DEFAULT '0',
+			`reltotalpart` int(11) DEFAULT '0',
+			`binaryhash` varchar(255) COLLATE utf8_unicode_ci NOT NULL,
+			`relname` varchar(255) COLLATE utf8_unicode_ci DEFAULT NULL,
+			`importname` varchar(255) COLLATE utf8_unicode_ci DEFAULT NULL,
+			`releaseID` int(11) DEFAULT NULL,
+			`dateadded` datetime DEFAULT NULL,
+			PRIMARY KEY (`ID`),
+			KEY `fromname` (`fromname`),
+			KEY `date` (`date`),
+			KEY `groupID` (`groupID`),
+			KEY `ix_binary_relname` (`relname`),
+			KEY `ix_binary_releaseID` (`releaseID`),
+			KEY `ix_binary_dateadded` (`dateadded`),
+			KEY `ix_binary_binaryhash` (`binaryhash`),
+			KEY `ix_binary_releaseID_relpart` (`releaseID`,`relpart`)
+			)'''
+		c.execute(sql)
+		conn.commit()
+		print 'Binaries table created.'		
+	# create collections table if it doesn't exist
+	c.execute('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_name = %s', (MySQLInfo[3], 'collections'))
+	ret = c.fetchone()
+	if ret[0] != 1:
+		sql = '''CREATE TABLE `collections` (
+                `ID` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+                `name` VARCHAR(255) NOT NULL DEFAULT '',
+                `subject` VARCHAR(255) NOT NULL DEFAULT '',
+                `fromname` VARCHAR(255) NOT NULL DEFAULT '',
+                `date` DATETIME DEFAULT NULL,
+                `xref` VARCHAR(255) NOT NULL DEFAULT '',
+                `totalFiles` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+                `groupID` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+                `collectionhash` VARCHAR(255) NOT NULL DEFAULT '0',
+                `dateadded` DATETIME DEFAULT NULL,
+                `filecheck` INT(11) UNSIGNED NOT NULL DEFAULT '0',
+                `filesize` BIGINT UNSIGNED NOT NULL DEFAULT '0',
+                `releaseID` INT NULL,
+                PRIMARY KEY  (`ID`),
+                KEY `fromname` (`fromname`),
+                KEY `date` (`date`),
+                KEY `groupID` (`groupID`)
+                )'''
+		c.execute(sql)
+		conn.commit()
+		print 'Collections table created.'
+
 	# create groups table if it doesn't exist
 	c.execute('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_name = %s', (MySQLInfo[3], 'groups'))
 	ret = c.fetchone()
@@ -133,6 +197,7 @@ try:
 			KEY `active` (`active`)
 			)'''
 		c.execute(sql)
+		conn.commit()
 		print 'groups table created.'
 
 		# populate groups table, even though we'll probably only enable 3 of these fuckers
