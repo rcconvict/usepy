@@ -58,7 +58,6 @@ def updateGroup(gid):
 				print 'Unable to fetch article range %s-%s for %s.' % (key, value, groupName)
 				pass
 			db.addParts(gid, overviews)
-			del overviews, resp
 	else:
 		try:
 			resp, overviews = socket.over((lastDBArticle, last))
