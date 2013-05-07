@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import MySQLdb as mdb
 import helper as helper
-import datetime
+import datetime, re
 
 def activateGroup(group):
 	'''Activate a group. Arguments:
@@ -65,7 +65,24 @@ def addParts(binaryID, over):
 	conn = mdb.connect(*mysqlInfo)
 	c = conn.cursor()
 	sql = 'INSERT INTO parts (binaryID, messageID, number, partnumber, size, dateadded) VALUES (%s, %s, %s, %s, %s, NOW())'
-	params = [(binaryID, i[1]['message-id'], i[0], '1', i[1][':bytes']) for i in over]
+
+	#params = [(binaryID, i[1]['message-id'], i[0], '1', i[1][':bytes']) for i in over]
+	params = list()
+	pattern = "(\d{1,4})of(\d{1,4})"
+	regex = re.compile(pattern, re.IGNORECASE)
+
+	for i in over:
+		message = i[1]['message-id'][1:-1]
+		number = i[0]
+		r = regex.search(message)
+		try:
+			file = r.groups()[0]
+			maxFiles = r.groups()[1]
+		except AttributeError:
+			file = 1
+		size = i[1][':bytes']
+		params.append([binaryID, message, number, file, size])
+
 	c.executemany(sql, params)
 	conn.commit()
 	conn.close()
