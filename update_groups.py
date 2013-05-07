@@ -45,7 +45,7 @@ def updateGroup(gid):
 	
 	# get article headers and add them to the DB
 	# Sometimes get utf-8 decode errors, fix this later
-	range = lastDBArticle - last
+	range = last - lastDBArticle
 
 	# only fetch 100 articles at a time in the event that there are a lot of articles
 	# so that we don't chew through memory. Maybe get this part multithreaded later.
