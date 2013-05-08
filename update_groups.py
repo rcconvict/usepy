@@ -41,7 +41,7 @@ def updateGroup(gid):
 
 	# get last 100 articles on server if we don't have any	
 	if lastDBArticle == 0:
-		lastDBArticle = last - 382
+		lastDBArticle = last - 1000
 	
 	# get article headers and add them to the DB
 	# Sometimes get utf-8 decode errors, fix this later
