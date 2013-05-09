@@ -13,6 +13,10 @@ class DB:
 			print 'Unable to connect to database', e
 			sys.exit(-1)
 
+	def __del__(self):
+		self.conn.close()
+		del self.conn
+
 	def queryInsert(self, query, returnlastid=True):
 		if query == '':
 			return False
