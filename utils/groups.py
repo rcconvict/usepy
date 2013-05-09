@@ -80,3 +80,9 @@ def reset(id):
 def resetall():
 	mdb = DB()
 	return mdb.query('update groups set backfill_target=0, first_record=0, first_record_postdate=null, last_record=0, last_record_postdate=null, last_updated=null, active = 0')
+
+def updateGroupStatus(id, status=0):
+	mdb = DB()
+	mdb.query('UPDATE groups SET active = %d WHERE id = %d' % (status, id))
+	status = 'deactivated' if status = 0 else 'activated'
+	return 'Group %d has been %s' % (id, status)
