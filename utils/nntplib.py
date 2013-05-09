@@ -4,6 +4,7 @@ import socket
 import collections
 import datetime
 import warnings
+import helper
 
 try:
     import ssl
@@ -607,7 +608,7 @@ class _NNTPBase:
                     last = words[3]
                     if n > 4:
                         name = words[4].lower()
-        return resp, int(count), int(first), int(last), name
+        return {'response' : resp, 'count': int(count), 'first' : int(first), 'last' : int(last), 'name' : name}
 
     def help(self, file=None):
         """Process a HELP command. Argument:
@@ -1016,54 +1017,11 @@ if _have_ssl:
     __all__.append("NNTP_SSL")
 
 
-# Test retrieval when run as a script.
-if __name__ == '__main__':
-    import argparse
-    from email.utils import parsedate
-
-    parser = argparse.ArgumentParser(description="""\
-        nntplib built-in demo - display the latest articles in a newsgroup""")
-    parser.add_argument('-g', '--group', default='gmane.comp.python.general',
-                        help='group to fetch messages from (default: %(default)s)')
-    parser.add_argument('-s', '--server', default='news.gmane.org',
-                        help='NNTP server hostname (default: %(default)s)')
-    parser.add_argument('-p', '--port', default=-1, type=int,
-                        help='NNTP port number (default: %s / %s)' % (NNTP_PORT, NNTP_SSL_PORT))
-    parser.add_argument('-n', '--nb-articles', default=10, type=int,
-                        help='number of articles to fetch (default: %(default)s)')
-    parser.add_argument('-S', '--ssl', action='store_true', default=False,
-                        help='use NNTP over SSL')
-    args = parser.parse_args()
-
-    port = args.port
-    if not args.ssl:
-        if port == -1:
-            port = NNTP_PORT
-        s = NNTP(host=args.server, port=port)
+def connect():
+    host, port, ssl, user, password = helper.getUsenetInfo()
+    if ssl:
+        return NNTP_SSL(host, port, user, password)
     else:
-        if port == -1:
-            port = NNTP_SSL_PORT
-        s = NNTP_SSL(host=args.server, port=port)
+        return NNTP(host, port, user, password)
 
-    caps = s.getcapabilities()
-    if 'STARTTLS' in caps:
-        s.starttls()
-    resp, count, first, last, name = s.group(args.group)
-    print('Group', name, 'has', count, 'articles, range', first, 'to', last)
 
-    def cut(s, lim):
-        if len(s) > lim:
-            s = s[:lim - 4] + "..."
-        return s
-
-    first = str(int(last) - args.nb_articles + 1)
-    resp, overviews = s.xover(first, last)
-    for artnum, over in overviews:
-        author = decode_header(over['from']).split('<', 1)[0]
-        subject = decode_header(over['subject'])
-        lines = int(over[':lines'])
-        print("{:7} {:20} {:42} ({})".format(
-              artnum, cut(author, 20), cut(subject, 42), lines)
-              )
-
-    s.quit()
