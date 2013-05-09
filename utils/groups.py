@@ -84,5 +84,5 @@ def resetall():
 def updateGroupStatus(id, status=0):
 	mdb = DB()
 	mdb.query('UPDATE groups SET active = %d WHERE id = %d' % (status, id))
-	status = 'deactivated' if status = 0 else 'activated'
+	status = 'deactivated' if status == 0 else 'activated'
 	return 'Group %d has been %s' % (id, status)
