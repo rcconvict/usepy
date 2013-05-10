@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from dateutil.parser import parse
+from backfill import Backfill
 import groups, helper
 import namecleaning
 from db import DB
@@ -49,6 +50,7 @@ class Binaries():
 	
 	def updateGroup(self, nntp, groupArr):
 		mdb = DB()
+		b = Backfill()
 		self.startGroup = time.time()
 
 		print 'Processing', groupArr['name']
@@ -69,8 +71,8 @@ class Binaries():
 				first = data['first']
 			else:
 				first = data['last'] - self.NewGroupMsgsToScan
-			# first_record_postdate = backfill.postdate(nntp, first, False)
-			# mdb.query(update groups)
+			first_record_postdate = b.postdate(nntp, first, True)
+			mdb.query("UPDATE groups SET first_record = %s, first_record_postdate = FROM_UNIXTIME(%s) WHERE ID = %s", (first, first_record_postdate, groupArr['ID']))
 		else:
 			first = groupArr['last_record'] + 1
 
@@ -110,7 +112,7 @@ class Binaries():
 					# scan filed, skip group
 					return
 	
-				# mdb.query('UPDATE groups SET last_record blah
+				mdb.query("UPDATE groups SET last_record = %s, last_updated = now() WHERE ID = %s", (lastId, groupArr['ID']))
 	
 				if last == grouplast:
 					done = True
