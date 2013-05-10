@@ -7,7 +7,7 @@ def getAll():
 
 def getByID(id):
 	mdb = DB()
-	return mdb.queryOneRow('SELECT * FROM groups WHERE ID = %d' % (id))
+	return mdb.queryOneRow('SELECT * FROM groups WHERE ID = %d', (id,))
 
 def getActive():
 	mdb = DB()
@@ -23,21 +23,21 @@ def getActiveIDs():
 
 def getByName(grp):
 	mdb = DB()
-	return mdb.queryOneRow('SELECT * FROM groups WHERE name = "%s"' % (grp))
+	return mdb.queryOneRow('SELECT * FROM groups WHERE name = "%s"', (grp,))
 
 def getNameByID(id):
 	mdb = DB()
-	res = mdb.queryOneRow('SELECT * FROM groups WHERE ID = %d' % (id))
+	res = mdb.queryOneRow('SELECT * FROM groups WHERE ID = %d', (id,))
 	return res['name']
 
 def getIDByName(name):
 	mdb = DB()
-	res = mdb.queryOneRow('SELECT * FROM groups WHERE name = %s' % (name))
+	res = mdb.queryOneRow('SELECT * FROM groups WHERE name = %s', (name,))
 	return res['ID']
 
 def disableForPost(name):
 	mdb = DB()
-	mdb.queryOneRow("update groups set first_record_postdate = %s where name = %s" % (mdb.escapeString('2000-00-00 00:00:00'), mdb.escapeString(name)))
+	mdb.queryOneRow("update groups set first_record_postdate = %s where name = %s", ('2000-00-00 00:00:00', mdb.escapeString(name)))
 
 def getCount(groupname=''):
 	mdb = DB()
@@ -46,7 +46,7 @@ def getCount(groupname=''):
 	if groupname != '':
 		grpsql += "and groups.name like %s " % mdb.escapeString("%"+groupname+"%")
 
-	res = mdb.queryOneRow('SELECT count(ID) as num from groups where 1=1 %s' % grpsql)
+	res = mdb.queryOneRow('SELECT count(ID) as num from groups where 1=1 %s', (grpsql,))
 	return res['num']
 
 def getCountActive(groupname=''):
@@ -66,16 +66,16 @@ def getCountInactive(gropuname=''):
 	if groupname != '':
 		grpsql += "and groups.name like %s " % mdb.escapeString("%"+groupname+"%")
 
-	res = mdb.queryOneRow('SELECT count(ID) as num from groups where 1=1 %s and active = 0' % grpsql)
+	res = mdb.queryOneRow('SELECT count(ID) as num from groups where 1=1 %s and active = 0', (grpsql,))
 	return res['num']
 
 def delete(id):
 	mdb = DB()
-	return mdb.query('delete from groups where ID = %d' % id)
+	return mdb.query('delete from groups where ID = %d', (id,))
 
 def reset(id):
 	mdb = DB()
-	return mdb.query('update groups set backfill_target=0, first_record=0, first_record_postdate=null, last_record=0, last_record_postdate=null, active = 0, last_updated=null where ID = %d' % id)
+	return mdb.query('update groups set backfill_target=0, first_record=0, first_record_postdate=null, last_record=0, last_record_postdate=null, active = 0, last_updated=null where ID = %d', (id,))
 
 def resetall():
 	mdb = DB()
@@ -83,6 +83,6 @@ def resetall():
 
 def updateGroupStatus(id, status=0):
 	mdb = DB()
-	mdb.query('UPDATE groups SET active = %d WHERE id = %d' % (status, id))
+	mdb.query('UPDATE groups SET active = %d WHERE id = %d', (status, id))
 	status = 'deactivated' if status == 0 else 'activated'
 	return 'Group %d has been %s' % (id, status)
