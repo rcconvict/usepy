@@ -17,11 +17,11 @@ class DB:
 		self.conn.close()
 		del self.conn
 
-	def queryInsert(self, query, returnlastid=True):
+	def queryInsert(self, query, kargs={}, returnlastid=True):
 		if query == '':
 			return False
 
-		self.c.execute(query)
+		self.c.execute(query, kargs)
 		return self.conn.insert_id() if returnlastid else c.fetchall()
 
 	def escapeString(self, str):
@@ -33,30 +33,33 @@ class DB:
 	def getAffectedRows(self):
 		return self.conn.affected_rows()
 
-	def queryOneRow(self, query):
-		rows = self.query(query)
+	def queryOneRow(self, query, kargs={}):
+		rows = self.query(query, kargs)
 
 		if rows == None:
 			return False
 
-		return rows[0]
+		try:
+			return rows[0]
+		except IndexError:
+			return None
 
-	def query(self, query):
+	def query(self, query, kargs={}):
 		if query == '':
 			return False
 
-		self.c.execute(query)
+		self.c.execute(query, kargs)
 		return self.c.fetchall()
 
-	def queryDirect(self, query):
-		return false if query == '' else self.query(query)
+	def queryDirect(self, query, kargs={}):
+		return false if query == '' else self.query(query, kargs)
 
 	def getNumRows(self):
 		#self.c.execute(query)
-		return self.c.rowcount		
+		return self.c.rowcount
 
-	def setAutoCommit(self):
-		self.conn.autocommit(True)
+	def setAutoCommit(self, enabled):
+		self.conn.autocommit(enabled)
 
 	def commit(self):
 		self.conn.commit()
