@@ -172,11 +172,11 @@ class Binaries():
 				# attempt to get file count
 				cRegex = re.compile('(\[|\(|\s)(\d{1,4})(\/|(\s|_)of(\s|_)|\-)(\d{1,4})(\]|\)|\s)(?!"?$)')
 				filecnt = cRegex.search(msg[1]['subject'])
-				filecnt = [x for x in filecnt.groups()]
 				if filecnt is None:
 					filecnt = list()
-					filecnt[1] = '0'
-					filecnt[5] = '0'
+					filecnt = ['0' for x in range(0,6)]
+				else:
+					filecnt = [x for x in filecnt.groups()]
 
 				matches = [str(x).strip() for x in matches.groups()]
 				if matches[0].isdigit() and matches[0].isdigit():
@@ -301,4 +301,81 @@ class Binaries():
 				print 'Skipping group.'
 				return False
 
+	def partRepair(self, nntp, groupArr):
+		n = self.n
 
+		mdb = DB()
+		missingParts = mdb.query("SELECT * FROM partrepair WHERE groupID = %d AND attempts < 5 ORDER BY numberID ASC LIMIT %d", (groupArr['ID'], self.partrepairlimit))
+		partsRepaired = partsFailed = 0
+
+		if len(missingParts) > 0:
+			print 'Attempting to repair %d parts.' % len(missingParts)
+
+			# loop through each part to group into ranges
+			ranges = dict()
+			lastnum = lastpart = 0
+			for part in missingParts:
+				if lastnum+1 == part['numberID']:
+					ranges[lastpart] = part['numberID']
+				else:
+					lastpart = part['numberID']
+					ranges[lastpart] = part['numberID']
+				lastnum = part['numberID']
+
+			num_attempted = 0
+
+			# download missing parts in ranges.
+			for partfrom, partto in ranges.iteritems():
+				self.startLoop = time.time()
+
+				num_attempted += partto - partfrom + 1
+				# print some output here
+
+				# get article from newsgroup
+				self.scan(nntp, groupArr, partfrom, partto, 'partrepair')
+
+				# check if articles were added
+				articles = ','.join("%d" % i for i in range(partfrom, partto))
+				sql = "SELECT pr.ID, pr.numberID, p.number from partrepair pr LEFT JOIN parts p ON p.number = pr.numberID WHERE pr.groupID=%d AND pr.numberID IN (%s) ORDER BY pr.numberID ASC"
+
+				result = mdb.queryDirect(sql, (groupArr['ID'], articles))
+				for r in result:
+					try:
+						if r['number'] == r['numberID']:
+							partsRepaired += 1
+
+							# article was added, delete from partrepair
+							mdb.query('DELETE FROM partrepair WHERE ID=%s', (r['ID'],))
+					except KeyError:
+						partsFailed += 1
+
+						# article was not added, increment attempts:
+						mdb.query('UPDATE partrepair SET attempts=attempts+1 WHERE ID = %s', (r['ID'],))
+
+			print n
+			print '%d parts repaired.' % (partsRepaired)
+
+		# remove articles that we can't fetch after 5 attempts
+		mdb.query('DELETE FROM partrepair WHERE attempts >= 5 AND groupID = %s', (groupArr['ID'],))
+
+	def addMissingParts(self, numbers, groupID):
+		mdb = DB()
+		insertStr = 'INSERT INTO partrepair (numberID, groupID) VALUES '
+		for number in numbers:
+			insertStr += '(%s, %s), ' % (number, groupID)
+		insertStr = insertStr[0:-2]
+		insertStr += ' ON DUPLICATE KEY UPDATE attempts=attampts+1'
+		return mdb.queryInsert(insertStr, False)
+
+	def retrieveBlacklist(self):
+		if self.blackListLoaded:
+			return self.blackList
+		blackList = self.getBlackList(True)
+		self.blackList = blackList
+		self.blackListLoaded = True
+		return blackList
+
+	def isBlackListed(self, msg, groupName):
+		blackList = self.retrieveBlackList()
+		field = dict()
+		# blacklist not fully implemented yet.
