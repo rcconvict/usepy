@@ -19,9 +19,8 @@ class Backfill():
 			except:
 				attempts += 1
 
-		if debug: print 'DEBUG: postdate for post: %s came back %s' % (post, date)
-
 		try:
+			if debug: print 'DEBUG: postdate for post: %s came back %s' % (post, date)
 			return date
 		except UnboundLocalError:
 			return ''
