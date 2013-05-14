@@ -9,6 +9,9 @@ except ImportError:
 	print 'Install the dateutil python package.'
 	sys.exit(-1)
 
+print 'this file needs to be updated to run with the new binaries setup. exiting.'
+sys.exit()
+
 def worker():
 	#while True:
 		item = q.get()
