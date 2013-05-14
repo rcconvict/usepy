@@ -6,14 +6,17 @@ from getpass import getpass
 import utils.helper as helper
 from utils.nntplib import NNTPError
 
-skip_mysql = False
-
 try:
 	import MySQLdb as mdb
 except ImportError:
 	print 'You need to install python-mysqldb'
-	sys.exit(1)
+	sys.exit()
 
+try:
+	import dateutuil
+except ImportError:
+	print 'You need to install python-dateutil'
+	sys.exit()
 
 if not os.path.isfile('config.ini'):
 	# Usenet configuration
@@ -31,19 +34,18 @@ if not os.path.isfile('config.ini'):
 	config.set('usenet', 'username', username)
 	config.set('usenet', 'password', password)
 	
-	if not skip_mysql:
-		# mysql configuration
-		address = raw_input('MySQL server address: ')
-		username = raw_input('MySQL username: ')
-		password = getpass('MySQL password: ')
-		database = raw_input('MySQL database name: ')
-		
-		config.add_section('mysql')
-		config.set('mysql', 'address', address)
-		config.set('mysql', 'username', username)
-		config.set('mysql', 'password', password)
-		config.set('mysql', 'database', database)
+	# mysql configuration
+	address = raw_input('MySQL server address: ')
+	username = raw_input('MySQL username: ')
+	password = getpass('MySQL password: ')
+	database = raw_input('MySQL database name: ')
 	
+	config.add_section('mysql')
+	config.set('mysql', 'address', address)
+	config.set('mysql', 'username', username)
+	config.set('mysql', 'password', password)
+	config.set('mysql', 'database', database)
+
 	with open('config.ini', 'wb') as configfile:
 		config.write(configfile)
 else:
@@ -56,7 +58,7 @@ try:
 	if socket.getwelcome().startswith('200'):
 		print 'Connected to usenet server, looking good!'
 except NNTPError, e:
-	print e
+	print 'Unable to connect to the usenet server: %s' % ee
 finally:
 	socket.quit()
 
@@ -86,10 +88,14 @@ def checkMySQL():
 		except NameError:
 			pass
 	
-	print 'Importing schema.sql'
-	process = Popen('mysql %s -u%s -p%s' % (MySQLInfo[3], MySQLInfo[1], MySQLInfo[2]),
-		stdout=PIPE, stdin=PIPE, shell=True)
-	output = process.communicate('source '+ 'db/schema.sql')[0]
-	print output
+	res = raw_input('Do you want to import the database schema?').lower()
+	if res in ['yes', 'y']:
+		print 'Importing schema.sql'
+		process = Popen('mysql %s -u%s -p%s' % (MySQLInfo[3], MySQLInfo[1], MySQLInfo[2]),
+			stdout=PIPE, stdin=PIPE, shell=True)
+		output = process.communicate('source db/schema.sql')[0]
+		print output
+	else:
+		print 'Skipping schema import.'
 
 checkMySQL()
