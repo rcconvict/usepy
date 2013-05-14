@@ -11,6 +11,10 @@ import time
 import sys
 import re
 
+BLACKLIST_FIELD_SUBJECT = 1
+BLACKLIST_FIELD_FROM = 2
+BLACKLIST_FIELD_MESSAGEID = 3
+
 class Binaries():
 	def __init__(self):
 		self.n = "\n"
@@ -378,4 +382,118 @@ class Binaries():
 	def isBlackListed(self, msg, groupName):
 		blackList = self.retrieveBlackList()
 		field = dict()
-		# blacklist not fully implemented yet.
+		if 'Subject' in msg.keys():
+			field[BLACKLIST_FIELD_SUBJECT] = msg['Subject']
+		if 'From' in msg.keys():
+			field[BLACKLIST_FIELD_FROM] = msg['From']
+		if 'Message-ID' in msg.keys():
+			field[BLACLIST_FIELD_MESSAGEID] = msg['Message-ID']
+
+		omitBinary = False
+
+		for blist in BlackList:
+			if re.search('/^'+blist['groupname']+'$/', groupName, re.IGNORECASE) != None:
+				if blist['optype'] == 1:
+					if re.search('/'+blist['regex']+'/', field[blist['msgcol']], re.IGNORECASE) != None:
+						omitBinary = True
+				elif blist['optype'] == 2:
+					if re.search('/'+blist['regex']+'/', field[blist['msgcol']], re.IGNORECASE) == None:
+						omitBinary = True
+
+		return omitBinary
+
+	def search(self, search, limit=1000, excludedcats={}):
+		mdb = DB()
+
+		# if the query starts with a ^ it indicates the search is looking for items which start with the term
+		# still do the like match, but mandate that all items returned must start with the provided word
+
+		words = search.split(' ')
+		searchsql = ''
+		intwordcount = 0
+		if len(words) > 0:
+			for word in words:
+				# see if the first word has a caret, which indicates search must start with term
+				if intwordcount == 0 and word[0] == '^':
+					searchsql += ' and b.name like %s%' % (mdb.escapeString(word[1:]))
+				else:
+					searchsql += ' and b.name like %s' % (mdb.escapeString('%'+word+'%'))
+
+				intwordcount += 1
+
+		exccatlist = ''
+		if len(excludedcats) > 0:
+			exccatlist = 'and b.categoryID not in ('+','.join(excludedcats)+') '
+
+		res = mdb.query('''SELECT b.*, g.name AS group_name, r.guid,
+					(SELECT COUNT(ID) FROM parts p where p.binaryID = b.ID) as 'binnum'
+					FROM binaries b
+					INNER JOIN groups g ON g.ID = b.groupID
+					LEFT OUTER JOIN releases r ON r.ID = b.releaseID
+					WHERE 1=1 %s %s order by DATE DESC LIMIT %d ''', (searchsql, exccatlist, limit))
+
+		return res
+
+	def getForReleaseId(self, id):
+		mdb = DB()
+		return mdb.query('SELECT binaries.* from binaries where releaseID = %s order by relpart', (id,))
+
+	def getById(self, id):
+		mdb = DB()
+		return mdb.queryOneRow('select binaries.*, collections.groupID, groups.name as groupname from binaries, collections left outer join groups on collections.groupID = groups.ID where binaries.ID = %d', (id,))
+
+	def getBlacklist(self, activeonly=True):
+		mdb = DB()
+		where = ''
+
+		if activeonly:
+			where = ' where binaryblacklist.status = 1 '
+		else:
+			where = ''
+
+		return mdb.query('''SELECT binaryblacklist.ID, binaryblacklist.optype, binaryblacklist.status, binaryblacklist.description, binaryblacklist.groupname AS groupname, binaryblacklist.regex, 
+					groups.ID AS groupID, binaryblacklist.msgcol FROM binaryblacklist 
+					left outer JOIN groups ON groups.name = binaryblacklist.groupname 
+					%s
+					ORDER BY coalesce(groupname, "zzz")''', (where,))
+	def getBlacklistByID(self, id):
+		mdb = DB()
+		return mdb.queryOneRow('select * from binaryblacklist where ID = %s', (id,))
+
+	def deleteBlacklist(self, id):
+		mdb = DB()
+		return mdb.query('delete from binaryblacklist where ID = %s', (id,))
+
+	def updateBlacklist(self, regex):
+		mdb = DB()
+
+		groupname = regex['groupname']
+		if groupname == '':
+			groupname = 'null'
+		else:
+			groupname = re.sub('a\.b\.' 'alt.binaries.', groupname, re.IGNORECASE)
+			groupname = mdb.escapeString(groupname)
+
+		mdb.query("update binaryblacklist set groupname=%s, regex=%s, status=%d, description=%s, optype=%d, msgcol=%d where ID = %d ",
+			(groupname, regex['regex'], regex['description'], regex['optype'], regex['msgcol'], regex['id']))
+
+	def addBlacklist(self, regex):
+		mdb = DB()
+
+		groupname = regex['groupname']
+		if groupname == '':
+			groupname = 'null'
+		else:
+			groupname = re.sub('a\.b\.' 'alt.binaries.', groupname, re.IGNORECASE)
+			groupname = mdb.escapeString(groupname)
+
+		return mdb.queryInsert("insert into binaryblacklist (groupname, regex, status, description, optype, msgcol) values (%s, %s, %d, %s, %d, %d) ",
+			(regex['regex'], regex['status'], regex['description'], regex['optype'], regex['msgcol']))
+
+	def delete(self, id):
+		mdb = DB()
+		bins = mdb.query('SELECT ID FROM binaries WHERE collectionID = %d', (id,))
+		for bin in bins:
+			mdb.query('delete from parts where binaryID = %d', (bin['ID']))
+		mdb.query('delete from binaries where collectionID = %d', (id,))
+		mdb.query('delete from collections where ID = %d', (id,))
