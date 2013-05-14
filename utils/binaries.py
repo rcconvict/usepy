@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from dateutil.parser import parse
-from backfill import Backfill
+import backfill
 import groups, helper
 import namecleaning
 from db import DB
@@ -54,7 +54,7 @@ class Binaries():
 	
 	def updateGroup(self, nntp, groupArr):
 		mdb = DB()
-		b = Backfill()
+		b = backfill.Backfill()
 		self.startGroup = time.time()
 
 		print 'Processing', groupArr['name']
