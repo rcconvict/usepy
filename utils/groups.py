@@ -23,7 +23,7 @@ def getActiveIDs():
 
 def getByName(grp):
 	mdb = DB()
-	return mdb.queryOneRow('SELECT * FROM groups WHERE name = "%s"', (grp,))
+	return mdb.queryOneRow('SELECT * FROM groups WHERE name = %s', (grp,))
 
 def getNameByID(id):
 	mdb = DB()
