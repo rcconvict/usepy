@@ -202,6 +202,7 @@ class Backfill():
 		success = False
 
 		while attempts <= 3 and success == False:
+			print 'Fetching postdate of article num %s' % post
 			resp, msgs = nntp.over((post, post))
 			try:
 				date = msgs[0][1]['date']
@@ -216,7 +217,7 @@ class Backfill():
 		except UnboundLocalError:
 			return ''
 
-	def dattopost(self, nntp, group, days, debug=True):
+	def daytopost(self, nntp, group, days, debug=True):
 		n = self.n
 		# DEBUG EVERY POSTDATE CALL?!?!?! R U FUKN NUTS LAWL
 		pddebug = False
@@ -231,7 +232,7 @@ class Backfill():
 		if debug:
 			print 'Total articles: %d Newest: %d Oldest: %d Goal: %d' % (totalnumberofarticles, upperbound, lowerbound, goaldate)
 		firstDate = self.postdate(nntp, data['first'], pddebug)
-		lastDate = self.postdate(nttp, data['last'], pddebug)
+		lastDate = self.postdate(nntp, data['last'], pddebug)
 
 		if goaldate < firstDate:
 			print 'WARNING: Backfill target of %d day(s) is older than the first article stored on your news server.' % days
