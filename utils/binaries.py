@@ -54,6 +54,7 @@ class Binaries():
 	
 	def updateGroup(self, nntp, groupArr):
 		mdb = DB()
+		n = self.n
 		b = backfill.Backfill()
 		self.startGroup = time.time()
 
@@ -124,13 +125,13 @@ class Binaries():
 					last = lastId
 					first = last +1
 
-			last_record_postdate = backfill.postdate(nntp, last, False)
+			last_record_postdate = b.postdate(nntp, last, False)
 			mdb.query('UPDATE groups SET last_record_postdate = FROM_UNIXTIME(%s), last_updated = now() WHERE ID = %s', (last_record_postdate, groupArr['ID']))
 			timeGroup = int(time.time() - self.startGroup)
 			print data['name'], 'processed in', timeGroup, 'seconds.'
 		
 		else:
-			print 'No new articles for %s (first %d last %d total %d) grouplast %d' % (data['name'], first, last, total, groupArr['last_record'])
+			print 'No new articles for %s (first %d last %d total %d) grouplast %d%s' % (data['name'], first, last, total, groupArr['last_record'], n)
 
 	def scan(self, nntp, groupArr, first, last, stype='update'):
 		mdb = DB()
@@ -371,10 +372,10 @@ class Binaries():
 		insertStr += ' ON DUPLICATE KEY UPDATE attempts=attampts+1'
 		return mdb.queryInsert(insertStr, False)
 
-	def retrieveBlacklist(self):
+	def retrieveBlackList(self):
 		if self.blackListLoaded:
 			return self.blackList
-		blackList = self.getBlackList(True)
+		blackList = self.getBlacklist(True)
 		self.blackList = blackList
 		self.blackListLoaded = True
 		return blackList
@@ -382,6 +383,7 @@ class Binaries():
 	def isBlackListed(self, msg, groupName):
 		blackList = self.retrieveBlackList()
 		field = dict()
+		msg = msg[1]
 		if 'Subject' in msg.keys():
 			field[BLACKLIST_FIELD_SUBJECT] = msg['Subject']
 		if 'From' in msg.keys():
@@ -391,7 +393,7 @@ class Binaries():
 
 		omitBinary = False
 
-		for blist in BlackList:
+		for blist in blackList:
 			if re.search('/^'+blist['groupname']+'$/', groupName, re.IGNORECASE) != None:
 				if blist['optype'] == 1:
 					if re.search('/'+blist['regex']+'/', field[blist['msgcol']], re.IGNORECASE) != None:
@@ -451,11 +453,9 @@ class Binaries():
 		else:
 			where = ''
 
-		return mdb.query('''SELECT binaryblacklist.ID, binaryblacklist.optype, binaryblacklist.status, binaryblacklist.description, binaryblacklist.groupname AS groupname, binaryblacklist.regex, 
-					groups.ID AS groupID, binaryblacklist.msgcol FROM binaryblacklist 
-					left outer JOIN groups ON groups.name = binaryblacklist.groupname 
-					%s
-					ORDER BY coalesce(groupname, "zzz")''', (where,))
+		return mdb.query('SELECT binaryblacklist.ID, binaryblacklist.optype, binaryblacklist.status, binaryblacklist.description, binaryblacklist.groupname AS groupname, \
+			binaryblacklist.regex, groups.ID AS groupID, binaryblacklist.msgcol FROM binaryblacklist \
+			left outer JOIN groups ON groups.name = binaryblacklist.groupname'+where+'ORDER BY coalesce(groupname, "zzz")')
 
 	def getBlacklistByID(self, id):
 		mdb = DB()
