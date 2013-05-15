@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import sys
 
 class Consoletools():
 	def __init__(self):
@@ -8,14 +9,18 @@ class Consoletools():
 		if reset:
 			self.lastMessageLength = 0
 
-		print chr(8) * self.lastMessageLength
+		sys.stdout.flush()
 
 		self.lastMessageLength = len(message)
-		print message
+		sys.stdout.write('\r'+message)
 
 	def percentString(self, cur, total):
 		percent = 100 * cur / total
 		formatString = ' %d/%d (%2d%%)' % (cur, total, percent)
+
+		if cur == total:
+			formatString = formatString+'\n'
+
 		return formatString
 
 	def convertTime(self, seconds):
