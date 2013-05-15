@@ -15,7 +15,7 @@ class Consoletools():
 
 	def percentString(self, cur, total):
 		percent = 100 * cur / total
-		formatString = '%d/%d (%2d%%)' % (cur, total, percent)
+		formatString = ' %d/%d (%2d%%)' % (cur, total, percent)
 		return formatString
 
 	def convertTime(self, seconds):
