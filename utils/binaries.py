@@ -124,8 +124,8 @@ class Binaries():
 					last = lastId
 					first = last +1
 
-			#last_record_postdate = backfill.postdate(nntp, last, False)
-			# mdb.query('UPDATE GROUPS balh
+			last_record_postdate = backfill.postdate(nntp, last, False)
+			mdb.query('UPDATE groups SET last_record_postdate = FROM_UNIXTIME(%s), last_updated = now() WHERE ID = %s', (last_record_postdate, groupArr['ID']))
 			timeGroup = int(time.time() - self.startGroup)
 			print data['name'], 'processed in', timeGroup, 'seconds.'
 		
@@ -169,9 +169,9 @@ class Binaries():
 					continue
 
 				# filter subject based on black/white list
-				#if self.isBlackListed(msg, groupArr['name']):
-					#msgsblacklisted.append(msg[0])
-					#continue
+				if self.isBlackListed(msg, groupArr['name']):
+					msgsblacklisted.append(msg[0])
+					continue
 
 				# attempt to get file count
 				cRegex = re.compile('(\[|\(|\s)(\d{1,4})(\/|(\s|_)of(\s|_)|\-)(\d{1,4})(\]|\)|\s)(?!"?$)')
@@ -456,6 +456,7 @@ class Binaries():
 					left outer JOIN groups ON groups.name = binaryblacklist.groupname 
 					%s
 					ORDER BY coalesce(groupname, "zzz")''', (where,))
+
 	def getBlacklistByID(self, id):
 		mdb = DB()
 		return mdb.queryOneRow('select * from binaryblacklist where ID = %s', (id,))
