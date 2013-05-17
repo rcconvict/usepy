@@ -7,7 +7,7 @@ def getAll():
 
 def getByID(id):
 	mdb = DB()
-	return mdb.queryOneRow('SELECT * FROM groups WHERE ID = %d', (id,))
+	return mdb.queryOneRow('SELECT * FROM groups WHERE ID = %s', (id,))
 
 def getActive():
 	mdb = DB()
