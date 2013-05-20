@@ -5,6 +5,7 @@ import consoletools
 import time
 import groups
 import nzb
+import namecleaning
 import category
 
 class Releases():
@@ -612,4 +613,34 @@ class Releases():
 		print 'Completed adding %d releases in %s. %d collections waiting to be created (still incomplete or in queue for creation.' % (releasesAdded, timeUpdate, cremain['ID'])
 		return releasesAdded
 
+	def splitBunchedCollections(self):
+		mdb = db.DB()
+		# namecleaner = namecleaning
+		res = mdb.queryDirect("SELECT b.ID as bID, b.name as bname, c.* FROM binaries b LEFT JOIN collections c ON b.collectionID = c.ID where c.filecheck = 10")
+		if res:
+			if len(res) > 0:
+				print 'Extracting bunched up collections.'
+				bunchedcnt = 0
+				cIDS = list()
+				for row in res:
+					cIDS.append(row['ID'])
+					newMD5 = hashlib.md5(namecleaning.collectionsCleaner(row['bname'], 'split')+row['fromname']+row['groupID']+row['totalFiles']).hexdigest()
+					cres = mdb.queryOneRow("SELECT ID FROM collections WHERE collectionhash = %s", (newMD5,))
+					if not cres:
+						bunchedcnt += 1
+						csql = "INSERT INTO collections (name, subject, fromname, date, xref, groupID, totalFiles, collectionhash, filecheck, dateadded) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 11, now())"
+						collectionID = mdb.queryInsert(csql, (namecleaning.releaseCleaner(row['bname']), row['bname'], row['fromname'], row['date'], row['xref'], row['groupID'], row['totalFiles'], newMD5))
+					else:
+						collectionID = cres['ID']
+						# update the collection table with the last seen date for the collection
+						mdb.queryDirect("UPDATE collections set dateadded = now() where ID = %s", (collectionID,))
+					# update the parts/binaries with new info
+					mdb.query("UPDATE binaries SET collectionID = %s where ID = %s", (collectionID, row['bID'],))
+					mdb.query("UPDATE parts SET binaryID = %s where binaryID = %s", (row['bID'], row['bID'],))
+				# remove the old collections
+				for cID in list(set(cIDS)):
+					mdb.query("DELETE FROM collections WHERE ID = %s", (cID,))
 
+				# update the collections to say we are done
+				mdb.query("UPDATE collections SET filecheck = 0 WHERE filecheck = 11")
+				print 'Extracted %d bunched collections.' % bunchedcnt
