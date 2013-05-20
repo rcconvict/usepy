@@ -13,7 +13,7 @@ except ImportError:
 	sys.exit()
 
 try:
-	import dateutuil
+	import dateutil
 except ImportError:
 	print 'You need to install python-dateutil'
 	sys.exit()
