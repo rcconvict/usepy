@@ -1,20 +1,38 @@
 #!/usr/bin/env python
-import site, db, re
 from time import gmtime, strftime
+import sites, db, re, page, os
+import consoletools
+import time
+import groups
+import nzb
+import category
 
 class Releases():
 	def __init__(self):
 		self.PASSWD_NONE = 0
 		self.PASSWD_POTENTIAL = 1
 		self.PASSWD_RAR = 2
-
-	def get(self):
-		s = site.Sites()
+		s = sites.Sites()
 		self.site = s.get()
-		self.stage5limit = self.site['maxnzbsprocessed'] if self.site['maxnzbsprocessed'] else 1000
-		self.completion = self.site['releasecompletion'] if self.site['releasecompletion'] else 0
-		self.crosspostt = self.site['coressposttime'] if self.site['crosspostttime'] else 2
-		self.updategrabs = False if self.site['grabstatus'] == 0 else True
+		try:
+			self.stage5limit = self.site['maxnzbsprocessed']
+		except KeyError:
+			self.site['maxnzbsprocessed'] = 1000
+		try:
+			self.completion = self.site['releasecompletion']
+		except KeyError:
+			self.site['releasecompletion'] = 0
+		try:
+			self.crosspostt = self.site['crossposttime']
+		except KeyError:
+			self.site['crosspostttime'] = 2
+		try:
+			if self.site['grabstatus'] == 0:
+				self.updategrabs = False
+			else:
+				self.updategrabs = True
+		except KeyError:
+			slef.updategrabs = False
 
 	def get(self):
 		mdb = db.DB()
@@ -176,17 +194,33 @@ class Releases():
 		res = mdb.queryOneRow("select count(ID) as num from releases")
 		return res['num']
 
+	def categorizeRelease(self, type, where = '', echo = False):
+		mdb = db.DB()
+		cat = category.Category()
+		ct = consoletools.Consoletools()
+		relcount = 0
+
+		resrel = mdb.queryDirect("SELECT ID, "+type+", groupID FROM releases "+where)
+		for rowrel in resrel:
+			catId = cat.determineCategory(rowrel['type'], rowrel['groupID'])
+			mdb.queryDirect("UPDATE releases SET categoryID = %s, relnamestatus = 1 WHERE ID = %s", (catId, rowrel['ID']))
+			relcount += 1
+			if echo == True:
+				ct.overWrite('Categorizing:'+ct.percentString(relcount, len(resrel)))
+
+		return relcount
+
 	def processReleasesStage1(self, groupID):
 		mdb = db.DB()
-		c = consoletools.ConsoleTools()
+		c = consoletools.Consoletools()
 		n = '\n'
 
 		print 'Stage 1 -> Try to find complete collections.'
 		stage1 = time.time()
-		where = ' AND groupID = %s' % groupID if not groupID else ''
+		where = ' AND groupID = %s' % groupID if groupID else ''
 
 		# look if we have all the files in a collection (which have the file count in the subject). Set filecheck to 1
-		mdb.query("UPDATE collections SET filecheck = 1 WHERE ID IN (SELECT ID FROM (SELECT c.ID FROM collections c LEFT JOIN binaries b ON b.collectionID = c.ID WHERE c.totalFiles > 0 AND c.filecheck = 0"+where+" GROUP BY c.ID, c.totalFiles HAVING count(b.ID) >= c.totalFiles) as tmpTable)" % where)
+		mdb.query("UPDATE collections SET filecheck = 1 WHERE ID IN (SELECT ID FROM (SELECT c.ID FROM collections c LEFT JOIN binaries b ON b.collectionID = c.ID WHERE c.totalFiles > 0 AND c.filecheck = 0"+where+" GROUP BY c.ID, c.totalFiles HAVING count(b.ID) >= c.totalFiles) as tmpTable)")
 		
 		# if we have all the parts set partcheck to 1
 		if not groupID:
@@ -202,11 +236,11 @@ class Releases():
 
 		print c.convertTime(int(time.time() - stage1))
 
-	def processReleaseStage2(self, groupID):
+	def processReleasesStage2(self, groupID):
 		mdb = db.DB()
-		c = consoletools.ConsoleTools()
+		c = consoletools.Consoletools()
 		n = '\n'
-		where = ' AND groupID = %s' % groupID if not groupID else ''
+		where = ' AND groupID = %s' % groupID if groupID else ''
 
 		print 'Stage 2 -> Get the size in bytes of the collection.'
 
@@ -218,7 +252,7 @@ class Releases():
 
 	def processReleasesStage3(self, groupID):
 		mdb = db.DB()
-		c = consoletools.ConsoleTools()
+		c = consoletools.Consoletools()
 		n = '\n'
 		minsizecounts = 0
 		maxsizecounts = 0
@@ -233,28 +267,28 @@ class Releases():
 
 			for groupID in groupIDs:
 				if mdb.queryDirect("SELECT ID from collections where filecheck = 3 and filesize > 0"):
-					mdb.query("UPDATE collections c LEFT JOIN (SELECT g.ID, coalesce(g.minsizetoformrelease, s.minsizetoformrelease) as minsizetoformrelease FROM groups g INNER JOIN ( SELECT value as minsizetoformrelease FROM site WHERE setting = 'minsizetoformrelease' ) s ) g ON g.ID = c.groupID SET c.filecheck = 5 WHERE g.minsizetoformrelease != 0 AND c.filecheck = 3 AND c.filesize < g.minsizetoformrelease and c.filesize > 0 AND groupID = "+groupID["ID"])
+					mdb.query("UPDATE collections c LEFT JOIN (SELECT g.ID, coalesce(g.minsizetoformrelease, s.minsizetoformrelease) as minsizetoformrelease FROM groups g INNER JOIN ( SELECT value as minsizetoformrelease FROM site WHERE setting = 'minsizetoformrelease' ) s ) g ON g.ID = c.groupID SET c.filecheck = 5 WHERE g.minsizetoformrelease != 0 AND c.filecheck = 3 AND c.filesize < g.minsizetoformrelease and c.filesize > 0 AND groupID = "+str(int(groupID["ID"])))
 					
 					minsizecount = mdb.getAffectedRows()
 					if minsizecount < 0:
 						minsizecount = 0
 					minsizecounts = minsizecount+minsizecounts
 
-					maxfilesizeres = mdb.queryOneRow("select value from site where setting = maxsizetoformrelease")
+					maxfilesizeres = mdb.queryOneRow("select value from site where setting = 'maxsizetoformrelease'")
 					if maxfilesizeres['value'] != 0:
-						mdb.query("UPDATE collections SET filecheck = 5 WHERE filecheck = 3 AND groupID = %d AND filesize > %d " % (groupID['ID'], maxfilesizeres['value']))
+						mdb.query("UPDATE collections SET filecheck = 5 WHERE filecheck = 3 AND groupID = %s AND filesize > %s " % (str(int(groupID['ID'])), str(int(maxfilesizeres['value']))))
 
 						maxsizecount = mdb.getAffectedRows()
 						if maxsizecount < 0:
 							maxsizecount = 0
 						maxsizecounts = maxsizecount+maxsizecounts
 
-					mdb.query("UPDATE collections c LEFT JOIN (SELECT g.ID, coalesce(g.minfilestoformrelease, s.minfilestoformrelease) as minfilestoformrelease FROM groups g INNER JOIN ( SELECT value as minfilestoformrelease FROM site WHERE setting = 'minfilestoformrelease' ) s ) g ON g.ID = c.groupID SET c.filecheck = 5 WHERE g.minfilestoformrelease != 0 AND c.filecheck = 3 AND c.totalFiles < g.minfilestoformrelease AND groupID = "+groupID["ID"])
+					mdb.query("UPDATE collections c LEFT JOIN (SELECT g.ID, coalesce(g.minfilestoformrelease, s.minfilestoformrelease) as minfilestoformrelease FROM groups g INNER JOIN ( SELECT value as minfilestoformrelease FROM site WHERE setting = 'minfilestoformrelease' ) s ) g ON g.ID = c.groupID SET c.filecheck = 5 WHERE g.minfilestoformrelease != 0 AND c.filecheck = 3 AND c.totalFiles < g.minfilestoformrelease AND groupID = "+str(int(groupID["ID"])))
 					
 					minfilecount = mdb.getAffectedRows()
 					if minfilecount < 0:
 						minfilecount = 0
-					minfilecounts = minfilecounts+minefilecount
+					minfilecounts = minfilecounts+minfilecount
 		else:
 			if mdb.queryDirect("SELECT ID from collections where filecheck = 3 and filesize > 0"):
 				mdb.query("UPDATE collections c LEFT JOIN (SELECT g.ID, coalesce(g.minsizetoformrelease, s.minsizetoformrelease) as minsizetoformrelease FROM groups g INNER JOIN ( SELECT value as minsizetoformrelease FROM site WHERE setting = 'minsizetoformrelease' ) s ) g ON g.ID = c.groupID SET c.filecheck = 5 WHERE g.minsizetoformrelease != 0 AND c.filecheck = 3 AND c.filesize < g.minsizetoformrelease and c.filesize > 0 AND groupID = "+groupID)
@@ -286,7 +320,7 @@ class Releases():
 
 	def processReleasesStage4(self, groupID):
 		mdb = db.DB()
-		c = consoletools.ConsoleTools()
+		c = consoletools.Consoletools()
 		n = '\n'
 		retcount = 0
 		where = ' AND groupID = %s' % groupID if not groupID else ''
@@ -327,7 +361,7 @@ class Releases():
 
 	def processReleasesStage4dot5(self, groupID):
 		mdb = db.DB()
-		c = consoletools.ConsoleTools()
+		c = consoletools.Consoletools()
 		n = '\n'
 		minsizecount = 0
 		maxsizecount = 0
@@ -343,24 +377,25 @@ class Releases():
 							(SELECT g.ID, coalesce(g.minsizetoformrelease, s.minsizetoformrelease) \
 							as minsizetoformrelease FROM groups g INNER JOIN ( SELECT value as minsizetoformrelease \
 							FROM site WHERE setting = 'minsizetoformrelease' ) s ) g ON g.ID = r.groupID WHERE \
-							g.minsizetoformrelease != 0 AND r.size < minsizetoformrelease AND groupID = "+groupID["ID"])
+							g.minsizetoformrelease != 0 AND r.size < minsizetoformrelease AND groupID = "+str(int(groupID["ID"])))
 				if resrel:
 					for rowrel in resrel:
 						self.fastDelete(rowrel['ID'], rowrel['guid'], self.site)
 						minsizecount += 1
-				maxfilesize = mdb.queryOneRow("SELECT value FROM site WHERE setting = maxsizetoformrelease")
+				maxfilesizeres = mdb.queryOneRow("SELECT value FROM site WHERE setting = 'maxsizetoformrelease'")
 				if maxfilesizeres['value'] != 0:
-					resrel = mdb.query("SELECT ID, guid from releases where groupID = %d AND filesize > %d " % (groupID["ID"], maxfilesizeres["value"]))
+					# where did they get filesize column from? 
+					resrel = mdb.query("SELECT ID, guid from releases where groupID = %s AND size > %s " % (str(int(groupID["ID"])), str(int(maxfilesizeres["value"]))))
 					if resrel:
 						for rowrel in resrel:
 							self.fastDelete(rowrel['ID'], rowrel['guid'], self.site)
 							maxsizecount += 1
 
-				resrel = mdb.query("SELECT r.ID FROM releases r LEFT JOIN \
-							(SELECT g.ID, guid, coalesce(g.minfilestoformrelease, s.minfilestoformrelease) \
+				resrel = mdb.query("SELECT r.ID, r.guid FROM releases r LEFT JOIN \
+							(SELECT g.ID, coalesce(g.minfilestoformrelease, s.minfilestoformrelease) \
 							as minfilestoformrelease FROM groups g INNER JOIN ( SELECT value as minfilestoformrelease \
 							FROM site WHERE setting = 'minfilestoformrelease' ) s ) g ON g.ID = r.groupID WHERE \
-							g.minfilestoformrelease != 0 AND r.totalpart < minfilestoformrelease AND groupID = "+groupID["ID"])
+							g.minfilestoformrelease != 0 AND r.totalpart < minfilestoformrelease AND groupID = "+str(int(groupID["ID"])))
 				if resrel:
 					for rowrel in resrel:
 						self.fastDelete(rowrel['ID'], rowrel['guide'], self.site)
@@ -401,12 +436,11 @@ class Releases():
 
 	def processReleasesStage5(self, groupID):
 		mdb = db.DB()
-		nzb = nzb.NZB()
-		page = page.Page()
-		c = consoletools.ConsoleTools()
+ 		nzbs = nzb.NZB()
+		c = consoletools.Consoletools()
 		n = '\n'
 		nzbcount = 0
-		where = ' AND groupID = %s' % groupID if not groupID else ''
+		where = ' AND groupID = %s' % groupID if groupID else ''
 
 		# create nzb.
 		print 'Stage 5 -> Create the NZB, mark collections as ready for deletion.'
@@ -416,7 +450,7 @@ class Releases():
 		resrel = mdb.queryDirect("SELECT ID, guid, name, categoryID FROM releases WHERE nzbstatus = 0 "+where+" LIMIT "+self.stage5limit)
 		if resrel:
 			for rowrel in resrel:
-				if nzb.writeNZBforReleaseId(rowrel['ID'], rowrel['guid'], rowrel['name'], rowrel['categoryID'], nzb.getNZBPath(rowrel['guid'], page.site.nzbpath, True, page.site.nzbsplitlevel)):
+				if nzb.writeNZBforReleaseId(rowrel['ID'], rowrel['guid'], rowrel['name'], rowrel['categoryID'], nzb.getNZBPath(rowrel['guid'], page.site().nzbpath, True, page.site().nzbsplitlevel)):
 					mdb.queryDirect("UPDATE releases SET nzbstatus = 1 WHERE ID = %s", (rowrel['ID'],))
 					mdb.queryDirect("UPDATE collections SET filecheck = 5 WHERE releaseID = %s", (rowrel['ID'],))
 					nzbcount += 1
@@ -428,35 +462,36 @@ class Releases():
 
 	def processReleasesStage5_loop(self, groupID):
 		tot_nzbcount = 0
+		nzbcount = 1
 		while nzbcount > 0:
 			nzbcount = self.processReleasesStage5(groupID)
-			tot_nzbcount = tot_nzbcont + nzbcount
+			tot_nzbcount = tot_nzbcount + nzbcount
 
 		return tot_nzbcount
 
 	def processReleasesStage6(self, categorize, postproc, groupID):
 		mdb = db.DB()
-		c = consoletools.ConsoleTools()
+		c = consoletools.Consoletools()
 		n = '\n'
-		where = ' WHERE relnamestatus = 0 AND groupID = %s' % groupID if not groupID else 'WHERE relnamestatus = 0'
+		where = ' WHERE relnamestatus = 0 AND groupID = %s' % groupID if groupID else 'WHERE relnamestatus = 0'
 
 		# categorize releases
 		print 'Stage 6 -> Categorize and post process releases.'
 		stage6 = time.time()
 		if categorize == 1:
-			self.categorizeReleases('name', where)
+			self.categorizeRelease('name', where)
 		if postproc == 1:
-			postprocess = postprocess.PostProcess(True)
-			postprocess.processAll()
+			#pp = postprocess.PostProcess(True)
+			#pp.processAll()
+			print 'Postprocessing not completed.'
 		else:
 			print 'Post-processing disabled.'+n
 		print c.convertTime(int(time.time() - stage6))
 
 	def processReleasesStage7(self, groupID):
 		mdb = db.DB()
-		page = page.Page()
 		cat = category.Category()
-		console = consoletools.ConsoleTools()
+		console = consoletools.Consoletools()
 		n = '\n'
 		remcount = 0
 		passcount = 0
@@ -465,7 +500,7 @@ class Releases():
 		completioncount = 0
 		disabledcount = 0
 
-		where = ' AND collections.groupID = %s' % groupID if not groupID else ''
+		where = ' AND collections.groupID = %s' % groupID if groupID else ''
 
 		# delete old releases and finished collections
 
@@ -480,29 +515,29 @@ class Releases():
 
 		where = ' AND groupID = %s' % groupID if not groupID else ''
 		# releases past retention
-		if page.site.releaseretentiondays != 0:
-			result = mdb.query("SELECT ID, guid FROM releases WHERE postdate < now() - interval %d day " % page.site.releaseretentiondays)
+		if page.site().releaseretentiondays != 0:
+			result = mdb.query("SELECT ID, guid FROM releases WHERE postdate < now() - interval %s day " % page.site().releaseretentiondays)
 			for rowrel in result:
 				self.fastDelete(rowrel['ID'], rowrel['guid'], self.site)
 				remcount += 1
 
 		# passworded releases
-		if page.site.deletepasswordedreleases == 1:
+		if page.site().deletepasswordedrelease == 1:
 			result = mdb.query("SELECT ID, guid FROM releases WHERE passwordstatus > 0")
 			for rowrel in result:
 				self.fastDelete(rowrel['ID'], rowrel['guid'], self.site)
 				passcount += 1
 
 		# crossposted releases
-		resrel = mdb.query("SELECT ID, guid FROM releases WHERE adddate > (now() - interval %d hour) GROUP BY name HAVING count(name) > 1" % self.crosspostt)
+		resrel = mdb.query("SELECT ID, guid FROM releases WHERE adddate > (now() - interval %s hour) GROUP BY name HAVING count(name) > 1" % self.crosspostt)
 		for rowrel in resrel:
 			self.fastDelete(rowrel['ID'], rowrel['guid'], self.site)
 			dupecount += 1
 
 		# releases below completion %
 		if self.completion > 0:
-			resrel = mdb.query("SELECT ID, guid FROM releases WHERE completion < %d and completion > 0" % self.completion)
-			for rowrel in reslrel:
+			resrel = mdb.query("SELECT ID, guid FROM releases WHERE completion < %s and completion > 0" % self.completion)
+			for rowrel in resrel:
 				self.fastDelet(rowrel['ID'], rowrel['guid'], self.site)
 				completioncount += 1
 
@@ -517,16 +552,15 @@ class Releases():
 
 		print 'Removed releses: %d past rentention, %d passworded, %d crossposted, %d from disabled categories.' % (remcount, passcount, dupecount, disabledcount)
 		if self.completion > 0:
-			print 'Removed %d under %d% completion. Removed %d parts/binaries/collection rows.' % (completioncount, self.completion, reccount)
+			print 'Removed %d under %d%% completion. Removed %d parts/binaries/collection rows.' % (int(completioncount), int(self.completion), int(reccount))
 		else:
 			print 'Removed %d parts/binaries/collection rows.' % (reccount)
 
-		print c.convertTime(int(time.time() - stage7))
+		print console.convertTime(int(time.time() - stage7))
 
-	def processReleases(self, postproc, groupName):
+	def processReleases(self, categorize, postproc, groupName):
 		mdb = db.DB()
-		page = page.Page()
-		console = consoletools.ConsoleTools()
+		console = consoletools.Consoletools()
 		n = '\n'
 		groupID = ''
 		if groupName:
@@ -535,8 +569,8 @@ class Releases():
 
 		self.processReleases = time.time()
 		print 'Starting release update process %s' % strftime("%Y-%m-%d %H:%M:%S", gmtime())
-		if not os.path.isdir(page.site.nzbpath):
-			print 'Bad or missing nzb directory - %s' % page.site.nzbpath
+		if not os.path.isdir(page.site().nzbpath):
+			print 'Bad or missing nzb directory - %s' % page.site().nzbpath
 			return
 
 		self.processReleasesStage1(groupID)
@@ -560,8 +594,8 @@ class Releases():
 		timeUpdate = console.convertTime(int(time.time() - self.processReleases))
 		where = ' WHERE groupID = %s' % groupID if groupID else ''
 
-		cremain = mdb.queryOneRow("select count(ID) from collections "+where)
-		print 'Completed adding %d releases in %s. %d collections waiting to be created (still incomplete or in queue for creation.' % (releasesAdded, timeUpdate, cremain)
+		cremain = mdb.queryOneRow("select count(ID) as ID from collections "+where)
+		print 'Completed adding %d releases in %s. %d collections waiting to be created (still incomplete or in queue for creation.' % (releasesAdded, timeUpdate, cremain['ID'])
 		return releasesAdded
 
 
