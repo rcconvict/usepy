@@ -192,7 +192,7 @@ class Binaries():
 					self.message[subject] = msg[1]
 					self.message[subject]['MaxParts'] = int(matches[1])
 					self.message[subject]['Date'] = parse(self.message[subject]['date']).strftime('%s')
-					self.message[subject]['CollectionHash'] = hashlib.md5(cleansubject+msg[1]['from']+str(msg[0])+str(filecnt[5])).hexdigest()
+					self.message[subject]['CollectionHash'] = hashlib.md5(cleansubject+msg[1]['from']+str(groupArr['ID'])+str(filecnt[5])).hexdigest()
 					self.message[subject]['MaxFiles'] = int(filecnt[5])
 					self.message[subject]['File'] = int(filecnt[1])
 
@@ -251,7 +251,7 @@ class Binaries():
 							csql = "INSERT INTO collections (name, subject, fromname, date, xref, groupID, totalFiles, collectionhash, dateadded) VALUES (%s, %s, %s, FROM_UNIXTIME(%s), %s, %s, %s, %s, now())"
 							collectionID = mdb.queryInsert(csql, (cleanerName, subject, data['from'], data['Date'], data['xref'], groupArr['ID'], data['MaxFiles'], collectionHash))
 						else:
-							collectionID = cres['ID']
+							collectionID = int(cres['ID'])
 							cusql = 'UPDATE collections SET dateadded = now() where ID = %s'
 							mdb.queryDirect(cusql, (collectionID,))
 
