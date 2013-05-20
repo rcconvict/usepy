@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import site
+import sites
 import db
 
 CAT_GAME_NDS = 1010
@@ -67,7 +67,7 @@ STATUS_DISABLED = 2
 
 class Category():
 	def __init__(self):
-		s = site.Sites()
+		s = sites.Sites()
 		sdata = s.get()
 		#self.categorizeforeign = False if site.categorizeforeign == '0' else True
 		try:
