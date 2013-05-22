@@ -237,6 +237,7 @@ class Binaries():
 
 				for subject, data in self.message.iteritems():
 					collectionHash = data['CollectionHash']
+					subject = namecleaning.unfuckString(subject)
 
 					if lastCollectionHash == collectionHash:
 						collectionID = lastCollectionID

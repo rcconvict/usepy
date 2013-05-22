@@ -1,8 +1,22 @@
 #!/usr/bin/env python
-import re
+import re, sys
+
+def unfuckString(subject):
+	try:
+		return subject.decode('ascii', 'ignore').encode('ascii', 'ignore')
+	except:
+		try:
+			return subject.encode('ascii', 'ignore')
+		except:
+			ans = raw_input('Unable to unfuck string. Drop into a shell? ')
+			if ans.lower() in ['y', 'yes']:
+				import pdb; pdb.set_trace()
+			else:
+				print 'Nothing else to do. Exiting.'
+				sys.exit()
 
 def collectionsCleaner(subject):
-	subject = subject.encode('ascii', 'ignore')
+	subject = unfuckString(subject)
 	# parts/files
 	cleanSubject = re.sub('(\(|\[|\s)\d{1,4}(\/|(\s|_)of(\s|_)|\-)\d{1,4}(\)|\]|\s)|\(\d{1,3}\|\d{1,3}\)|\-\d{1,3}\-\d{1,3}\.|\s\d{1,3}\sof\s\d{1,3}\.|\s\d{1,3}\/\d{1,3}|\d{1,3}of\d{1,3}\./i', '', subject)
 	# Anything between the quotes. Too much variance within the quotes, so remove it completely
@@ -17,7 +31,7 @@ def collectionsCleaner(subject):
 	return cleanSubject
 
 def releaseCleaner(subject):
-	subject = subject.encode('ascii', 'ignore')
+	subject = unfuckString(subject)
 	# file and part count
 	cleanerName = re.sub('(\(|\[|\s)\d{1,4}(\/|(\s|_)of(\s|_)|\-)\d{1,4}(\)|\]|\s)|\(\d{1,3}\|\d{1,3}\)|\-\d{1,3}\-\d{1,3}\.|\s\d{1,3}\sof\s\d{1,3}\.|\s\d{1,3}\/\d{1,3}|\d{1,3}of\d{1,3}\./i', '', subject)
 	# size
@@ -39,7 +53,7 @@ def releaseCleaner(subject):
 	return cleanerName
 
 def fixerCleaner(name):
-	subject = subject.encode('ascii', 'ignore')
+	subject = unfuckString(subject)
 	# extensions
 	cleanerName = re.sub('(\.part(\d{1,5})?)?\.(7z|\d{3}(?=(\s|"))|avi|epub|exe|idx|jpg|mobi|mp4|nfo|nzb|par\s?2|pdf|rar|rev|r\d\d|sfv|srs|srr|sub|txt|vol.+(par2)|zip|z{2})"?|\d{2,3}\.pdf|yEnc|\.part\d{1,4}\./i', '', name)
 	# remove some chars	

@@ -5,6 +5,7 @@ import collections
 import datetime
 import warnings
 import helper
+import codecs
 
 try:
     import ssl
@@ -15,6 +16,41 @@ else:
 
 from email.header import decode_header as _email_decode_header
 from socket import _GLOBAL_DEFAULT_TIMEOUT
+
+try:
+	codecs.lookup_error('surrogateescape')
+except LookupError:
+	def my_se(exc):
+		'''
+		Pure python implementation of PEP 383: the 'surrogateescape' error
+		handler of Python 3.1.
+		https://bitbucket.org/haypo/misc/src/tip/python/surrogateescape.py
+		'''
+		if isinstance(exc, UnicodeDecodeError):
+			decoded = []
+			for ch in exc.object[exc.start:exc.end]:
+				code = ord(ch)
+				if 0x80 <= code <= 0xFF:
+					decoded.append(unichr(0xDC00 + code))
+				elif code <= 0x7F:
+					decoded.append(unichr(code))
+				else:
+					print('RAISE!')
+					raise exc
+			decoded = str().join(decoded)
+			return (decoded, exc.end)
+		else:
+			print(exc.args)
+			ch = exc.object[exc.start:exc.end]
+			code = ord(ch)
+			if not 0xDC80 <= code <= 0xDCFF:
+				print('RAISE!')
+				raise exc
+			print(exc.start)
+			byte = unichr(code-0xDC00)
+			print(repr(byte))
+			return (byte, exc.end)
+	codecs.register_error('surrogateescape', my_se)
 
 __all__ = ["NNTP",
            "NNTPReplyError", "NNTPTemporaryError", "NNTPPermanentError",
