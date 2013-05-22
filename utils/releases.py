@@ -220,6 +220,7 @@ class Releases():
 		stage1 = time.time()
 		where = ' AND groupID = %s' % groupID if groupID else ''
 
+		groupID = str(int(groupID)) if groupID else ''
 		# look if we have all the files in a collection (which have the file count in the subject). Set filecheck to 1
 		mdb.query("UPDATE collections SET filecheck = 1 WHERE ID IN (SELECT ID FROM (SELECT c.ID FROM collections c LEFT JOIN binaries b ON b.collectionID = c.ID WHERE c.totalFiles > 0 AND c.filecheck = 0"+where+" GROUP BY c.ID, c.totalFiles HAVING count(b.ID) >= c.totalFiles) as tmpTable)")
 		
@@ -249,6 +250,7 @@ class Releases():
 		# if a collection has not been updated in two hours, set filecheck to 2
 		mdb.query("UPDATE collections c SET filecheck = 2, totalFiles = (SELECT COUNT(b.ID) FROM binaries b WHERE b.collectionID = c.ID) WHERE c.dateadded < (now() - interval 2 hour) AND c.filecheck < 2 "+where)
 
+		mdb.commit()
 		print c.convertTime(int(time.time() - stage1))
 
 	def processReleasesStage2(self, groupID):
@@ -277,6 +279,7 @@ class Releases():
 
 		stage3 = time.time()
 
+		groupID = str(int(groupID)) if groupID else ''
 		if groupID == '':
 			groupIDs = groups.getActiveIDs()
 
@@ -312,15 +315,15 @@ class Releases():
 				if minsizecount < 0:
 					minsizecount = 0
 				minsizecounts = minsizecount+minsizecounts
-				maxfilesizeres = mdb.queryOneRow("select value from site where setting = maxsizetoformrelease")
+				maxfilesizeres = mdb.queryOneRow("select value from site where setting = 'maxsizetoformrelease'")
 
 				if maxfilesizeres['value'] != 0:
-					mdb.query("UPDATE collections SET filecheck = 5 WHERE filecheck = 3 AND groupID = %d AND filesize > %d " % (groupID['ID'], maxfilesizeres['value']))
+					mdb.query("UPDATE collections SET filecheck = 5 WHERE filecheck = 3 AND filesize > %s " % (maxfilesizeres['value'],))
 					maxsizecount = mdb.getAffectedRows()
 					if maxsizecount < 0:
 						maxsizecount = 0
 					maxsizecounts = maxsizecount+maxsizecounts
-					mdb.query("UPDATE collections c LEFT JOIN (SELECT g.ID, coalesce(g.minfilestoformrelease, s.minfilestoformrelease) as minfilestoformrelease FROM groups g INNER JOIN ( SELECT value as minfilestoformrelease FROM site WHERE setting = 'minfilestoformrelease' ) s ) g ON g.ID = c.groupID SET c.filecheck = 5 WHERE g.minfilestoformrelease != 0 AND c.filecheck = 3 AND c.totalFiles < g.minfilestoformrelease AND groupID = "+groupID["ID"])
+					mdb.query("UPDATE collections c LEFT JOIN (SELECT g.ID, coalesce(g.minfilestoformrelease, s.minfilestoformrelease) as minfilestoformrelease FROM groups g INNER JOIN ( SELECT value as minfilestoformrelease FROM site WHERE setting = 'minfilestoformrelease' ) s ) g ON g.ID = c.groupID SET c.filecheck = 5 WHERE g.minfilestoformrelease != 0 AND c.filecheck = 3 AND c.totalFiles < g.minfilestoformrelease AND groupID = "+groupID)
 				
 				minfilecount = mdb.getAffectedRows()
 
@@ -338,7 +341,7 @@ class Releases():
 		c = consoletools.Consoletools()
 		n = '\n'
 		retcount = 0
-		where = ' AND groupID = %s' % groupID if not groupID else ''
+		where = ' AND groupID = %s' % groupID if groupID else ''
 
 		print n+'Stage 4 -> Create releases.'
 		stage4 = time.time()
@@ -367,8 +370,8 @@ class Releases():
 
 	def processReleasesStage4_loop(self, groupID):
 		tot_retcount = 0
-
-		while tot_retcount > 0:
+		retcount = 1
+		while retcount > 0:
 			retcount = self.processReleasesStage4(groupID)
 			tot_retcount = tot_retcount + retcount
 
@@ -417,18 +420,18 @@ class Releases():
 						minfilecount += 1
 		else:
 			resrel = mdb.query("SELECT r.ID FROM releases r LEFT JOIN \
-						(SELECT g.ID, guid, coalesce(g.minsizetoformrelease, s.minsizetoformrelease) \
+						(SELECT g.ID, coalesce(g.minsizetoformrelease, s.minsizetoformrelease) \
 						as minsizetoformrelease FROM groups g INNER JOIN ( SELECT value as minsizetoformrelease \
 						FROM site WHERE setting = 'minsizetoformrelease' ) s ) g ON g.ID = r.groupID WHERE \
-						g.minsizetoformrelease != 0 AND r.size < minsizetoformrelease AND groupID = "+groupID)
+						g.minsizetoformrelease != 0 AND r.size < minsizetoformrelease AND groupID = "+str(int(groupID)))
 			if resrel:
 				for rowrel in resrel:
 					self.fastDelete(rowrel['ID'], rowrel['guid'], self.site)
 					minsizecount += 1
 
-			maxfilesizeres = mdb.query("SELECT value FROM site WHERE setting = maxsizetoformrelease")
+			maxfilesizeres = mdb.queryOneRow("SELECT value FROM site WHERE setting = 'maxsizetoformrelease'")
 			if maxfilesizeres['value'] != 0:
-				resrel = mdb.query("SELECT ID, guid from releases where groupID = %d AND filesize > %d " % (groupID, maxfilesizeres["value"]))
+				resrel = mdb.query("SELECT ID, guid from releases where groupID = %s AND size > %s" % (groupID, maxfilesizeres["value"]))
 				if resrel:
 					for rowrel in resrel:
 						self.fastDelete(rowrel['ID'], rowrel['guid'], self.site)
@@ -438,7 +441,7 @@ class Releases():
 						(SELECT g.ID, coalesce(g.minfilestoformrelease, s.minfilestoformrelease) \
 						as minfilestoformrelease FROM groups g INNER JOIN ( SELECT value as minfilestoformrelease \
 						FROM site WHERE setting = 'minfilestoformrelease' ) s ) g ON g.ID = r.groupID WHERE \
-						g.minfilestoformrelease != 0 AND r.totalpart < minfilestoformrelease AND groupID = "+groupID)
+						g.minfilestoformrelease != 0 AND r.totalpart < minfilestoformrelease AND groupID = "+str(int(groupID)))
 			if resrel:
 				for rowrel in resrel:
 					self.fastDelete(rowrel['ID'], rowrel['guid'], self.site)
