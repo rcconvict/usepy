@@ -344,7 +344,7 @@ class Releases():
 		retcount = 0
 		where = ' AND groupID = %s' % groupID if groupID else ''
 
-		print n+'Stage 4 -> Create releases.'
+		print 'Stage 4 -> Create releases.'
 		stage4 = time.time()
 
 		rescol = mdb.queryDirect("SELECT * FROM collections WHERE filecheck = 3 AND filesize > 0 " + where + " LIMIT 1000")
@@ -504,7 +504,7 @@ class Releases():
 			#pp.processAll()
 			print 'Postprocessing not completed.'
 		else:
-			print 'Post-processing disabled.'+n
+			print 'Post-processing disabled.'
 		print c.convertTime(int(time.time() - stage6))+n
 
 	def processReleasesStage7(self, groupID):
