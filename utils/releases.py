@@ -10,6 +10,7 @@ import category
 
 class Releases():
 	def __init__(self):
+		self.n = '\n'
 		self.PASSWD_NONE = 0
 		self.PASSWD_POTENTIAL = 1
 		self.PASSWD_RAR = 2
@@ -214,7 +215,7 @@ class Releases():
 	def processReleasesStage1(self, groupID):
 		mdb = db.DB()
 		c = consoletools.Consoletools()
-		n = '\n'
+		n = self.n
 
 		print 'Stage 1 -> Try to find complete collections.'
 		stage1 = time.time()
@@ -251,12 +252,12 @@ class Releases():
 		mdb.query("UPDATE collections c SET filecheck = 2, totalFiles = (SELECT COUNT(b.ID) FROM binaries b WHERE b.collectionID = c.ID) WHERE c.dateadded < (now() - interval 2 hour) AND c.filecheck < 2 "+where)
 
 		mdb.commit()
-		print c.convertTime(int(time.time() - stage1))
+		print c.convertTime(int(time.time() - stage1))+n
 
 	def processReleasesStage2(self, groupID):
 		mdb = db.DB()
 		c = consoletools.Consoletools()
-		n = '\n'
+		n = self.n
 		where = ' AND groupID = %s' % groupID if groupID else ''
 
 		print 'Stage 2 -> Get the size in bytes of the collection.'
@@ -265,12 +266,12 @@ class Releases():
 		# get the total size in bytes of the collection for collections where filecheck = 2
 		mdb.query("UPDATE collections c SET filesize = (SELECT SUM(size) FROM parts p LEFT JOIN binaries b ON p.binaryID = b.ID WHERE b.collectionID = c.ID), c.filecheck = 3 WHERE c.filecheck = 2 AND c.filesize = 0 "+where)
 
-		print c.convertTime(int(time.time() - stage2))
+		print c.convertTime(int(time.time() - stage2))+n
 
 	def processReleasesStage3(self, groupID):
 		mdb = db.DB()
 		c = consoletools.Consoletools()
-		n = '\n'
+		n = self.n
 		minsizecounts = 0
 		maxsizecounts = 0
 		minfilecounts = 0
@@ -334,12 +335,12 @@ class Releases():
 		if delcount > 0:
 			print '...Deleted %d collections smaller/larger than group/site settings.' % (delcount)
 
-		print c.convertTime(int(time.time() - stage3))
+		print c.convertTime(int(time.time() - stage3))+n
 
 	def processReleasesStage4(self, groupID):
 		mdb = db.DB()
 		c = consoletools.Consoletools()
-		n = '\n'
+		n = self.n
 		retcount = 0
 		where = ' AND groupID = %s' % groupID if groupID else ''
 
@@ -365,7 +366,7 @@ class Releases():
 					print 'Error inserting release: %s' % cleanRelName
 
 		timing = c.convertTime(int(time.time() - stage4))
-		print '%d releases added in %s' % (retcount, timing)
+		print '%d releases added in %s.%s' % (retcount, timing, n)
 		return retcount
 
 	def processReleasesStage4_loop(self, groupID):
@@ -380,7 +381,7 @@ class Releases():
 	def processReleasesStage4dot5(self, groupID):
 		mdb = db.DB()
 		c = consoletools.Consoletools()
-		n = '\n'
+		n = self.n
 		minsizecount = 0
 		maxsizecount = 0
 		minfilecount = 0
@@ -450,13 +451,13 @@ class Releases():
 		delcount = minsizecount + maxsizecount + minfilecount
 		if delcount > 0:
 			print '...Deleted %d releases smaller/larger than group/site settings.' % (delcount)
-		print c.convertTime(int(time.time() - stage4dot5))
+		print c.convertTime(int(time.time() - stage4dot5))+n
 
 	def processReleasesStage5(self, groupID):
 		mdb = db.DB()
  		nzbs = nzb.NZB()
 		c = consoletools.Consoletools()
-		n = '\n'
+		n = self.n
 		nzbcount = 0
 		where = ' AND groupID = %s' % groupID if groupID else ''
 
@@ -475,7 +476,7 @@ class Releases():
 					c.overWrite('Creating NZBs:'+c.percentString(nzbcount,len(resrel)))
 
 		timing = c.convertTime(int(time.time() - stage5))
-		print n+'%d NZBs created in %s.' % (nzbcount, timing)
+		print n+'%d NZBs created in %s.%s' % (nzbcount, timing, n)
 		return nzbcount
 
 	def processReleasesStage5_loop(self, groupID):
@@ -490,7 +491,7 @@ class Releases():
 	def processReleasesStage6(self, categorize, postproc, groupID):
 		mdb = db.DB()
 		c = consoletools.Consoletools()
-		n = '\n'
+		n = self.n
 		where = ' WHERE relnamestatus = 0 AND groupID = %s' % groupID if groupID else 'WHERE relnamestatus = 0'
 
 		# categorize releases
@@ -504,13 +505,13 @@ class Releases():
 			print 'Postprocessing not completed.'
 		else:
 			print 'Post-processing disabled.'+n
-		print c.convertTime(int(time.time() - stage6))
+		print c.convertTime(int(time.time() - stage6))+n
 
 	def processReleasesStage7(self, groupID):
 		mdb = db.DB()
 		cat = category.Category()
 		console = consoletools.Consoletools()
-		n = '\n'
+		n = self.n
 		remcount = 0
 		passcount = 0
 		dupecount = 0
