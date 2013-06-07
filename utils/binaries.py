@@ -272,20 +272,19 @@ class Binaries():
 							binaryID = bres['ID']
 						lastBinaryID = binaryID
 
-						for partdata in data['Parts'].values():
-							pBinaryID = binaryID
-							pMessageID = partdata['Message-ID']
-							pNumber = partdata['number']
-							pPartNumber = round(partdata['part'])
-							pSize = partdata['size']
-
-							maxnum = partdata['number'] if (partdata['number'] > maxnum) else maxnum
-							params = (pBinaryID, pNumber, pMessageID, pPartNumber, pSize)
-							
-							try:
-								mdb.query(insPartsStmt, params)
-							except MySQLdb.Error, e:
-								msgsnotinserted.append(partdata['number'])
+					for partdata in data['Parts'].values():
+						pBinaryID = binaryID
+						pMessageID = partdata['Message-ID']
+						pNumber = partdata['number']
+						pPartNumber = round(partdata['part'])
+						pSize = partdata['size']
+						maxnum = partdata['number'] if (partdata['number'] > maxnum) else maxnum
+						params = (pBinaryID, pNumber, pMessageID, pPartNumber, pSize)
+						
+						try:
+							mdb.query(insPartsStmt, params)
+						except MySQLdb.Error, e:
+							msgsnotinserted.append(partdata['number'])
 
 				if len(msgsnotinserted) > 0:
 					print 'WARNING: %d parts failed to insert.' % len(msgsnotinserted)
