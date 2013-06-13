@@ -21,7 +21,7 @@ class Binaries():
 		self.compressedHeaders = False
 		self.messagebuffer = 20000
 		self.NewGroupScanByDays = False
-		self.NewGroupMsgsToScan = 10 # 5000
+		self.NewGroupMsgsToScan = 300000 # 5000
 		self.NewGroupDaysToScan = 3
 		self.DoPartRepair = False
 		self.partrepairlimit = 15000
@@ -207,7 +207,10 @@ class Binaries():
 						self.message[subject]['Parts'][int(matches[0])] = {'Message-ID' : msg[1]['message-id'][1:-1], 'number' : msg[0], 'part' : int(matches[0]), 'size' : msg[1][':bytes']}
 
 			timeCleaning = int(time.time() - self.startCleaning)
-			del msg
+			try:
+				del msg
+			except UnboundLocalError:
+				pass
 			maxnum = last
 			rangenotreceived = list(set(rangerequested) - set(msgsreceived))
 
