@@ -22,7 +22,7 @@ class DB:
 			return False
 
 		self.c.execute(query, kargs)
-		return self.conn.insert_id() if returnlastid else c.fetchall()
+		return self.conn.insert_id() if returnlastid else self.c.fetchall()
 
 	def escapeString(self, str):
 		return "'"+self.conn.escape_string(str)+"'"
