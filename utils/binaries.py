@@ -23,7 +23,7 @@ class Binaries():
 		self.NewGroupScanByDays = False
 		self.NewGroupMsgsToScan = 300000 # 5000
 		self.NewGroupDaysToScan = 3
-		self.DoPartRepair = False
+		self.DoPartRepair = True
 		self.partrepairlimit = 15000
 
 		self.blackLlist = dict()
@@ -378,8 +378,8 @@ class Binaries():
 		for number in numbers:
 			insertStr += '(%s, %s), ' % (number, groupID)
 		insertStr = insertStr[0:-2]
-		insertStr += ' ON DUPLICATE KEY UPDATE attempts=attampts+1'
-		return mdb.queryInsert(insertStr, False)
+		insertStr += ' ON DUPLICATE KEY UPDATE attempts=attempts+1'
+		return mdb.queryInsert(insertStr, None, False)
 
 	def retrieveBlackList(self):
 		if self.blackListLoaded:
