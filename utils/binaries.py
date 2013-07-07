@@ -319,7 +319,7 @@ class Binaries():
 		n = self.n
 
 		mdb = DB()
-		missingParts = mdb.query("SELECT * FROM partrepair WHERE groupID = %d AND attempts < 5 ORDER BY numberID ASC LIMIT %d", (groupArr['ID'], self.partrepairlimit))
+		missingParts = mdb.query("SELECT * FROM partrepair WHERE groupID = %s AND attempts < 5 ORDER BY numberID ASC LIMIT %s", (groupArr['ID'], self.partrepairlimit))
 		partsRepaired = partsFailed = 0
 
 		if len(missingParts) > 0:
@@ -346,31 +346,33 @@ class Binaries():
 				# print some output here
 
 				# get article from newsgroup
+				nntp.group(groupArr['name'])
 				self.scan(nntp, groupArr, partfrom, partto, 'partrepair')
 
 				# check if articles were added
-				articles = ','.join("%d" % i for i in range(partfrom, partto))
-				sql = "SELECT pr.ID, pr.numberID, p.number from partrepair pr LEFT JOIN parts p ON p.number = pr.numberID WHERE pr.groupID=%d AND pr.numberID IN (%s) ORDER BY pr.numberID ASC"
+				if partfrom == partto:
+					articles = partfrom
+				else:
+					articles = ','.join("%d" % i for i in range(partfrom, partto))
+	
+				sql = "SELECT pr.ID, pr.numberID, p.number from partrepair pr LEFT JOIN parts p ON p.number = pr.numberID WHERE pr.groupID=%s AND pr.numberID IN (%s) ORDER BY pr.numberID ASC"
 
 				result = mdb.queryDirect(sql, (groupArr['ID'], articles))
 				for r in result:
-					try:
-						if r['number'] == r['numberID']:
-							partsRepaired += 1
-
-							# article was added, delete from partrepair
-							mdb.query('DELETE FROM partrepair WHERE ID=%s', (r['ID'],))
-					except KeyError:
+					if r['number'] == r['numberID']:
+						partsRepaired += 1
+						# article was added, delete from partrepair
+						mdb.query('DELETE FROM partrepair WHERE ID=%s', (r['ID'],))
+					else:
 						partsFailed += 1
-
 						# article was not added, increment attempts:
 						mdb.query('UPDATE partrepair SET attempts=attempts+1 WHERE ID = %s', (r['ID'],))
 
-			print n
 			print '%d parts repaired.' % (partsRepaired)
 
 		# remove articles that we can't fetch after 5 attempts
 		mdb.query('DELETE FROM partrepair WHERE attempts >= 5 AND groupID = %s', (groupArr['ID'],))
+		mdb.commit()
 
 	def addMissingParts(self, numbers, groupID):
 		mdb = DB()
