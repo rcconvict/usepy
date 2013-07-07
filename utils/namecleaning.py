@@ -19,8 +19,6 @@ def collectionsCleaner(subject, type='normal'):
 	subject = unfuckString(subject)
 	# parts/files
 	cleanSubject = re.sub('(\(|\[|\s)\d{1,4}(\/|(\s|_)of(\s|_)|\-)\d{1,4}(\)|\]|\s)|\(\d{1,3}\|\d{1,3}\)|\-\d{1,3}\-\d{1,3}\.|\s\d{1,3}\sof\s\d{1,3}\.|\s\d{1,3}\/\d{1,3}|\d{1,3}of\d{1,3}\.', '', subject, re.IGNORECASE)
-	# Anything between the quotes. Too much variance within the quotes, so remove it completely
-	cleanSubject = re.sub('\".+\"', '', cleanSubject, re.IGNORECASE)
 	# file extensions
 	cleanSubject = re.sub('(\.part(\d{1,5})?)?\.(7z|\d{3}(?=(\s|"))|avi|idx|jpg|mp4|nfo|nzb|par\s?2|pdf|rar|rev|r\d\d|sfv|srs|srr|sub|txt|vol.+(par2)|zip|z{2})"?|\d{2,3}\s\-\s.+\.mp3|(\s|(\d{2,3})?\-)\d{2,3}\.mp3|\d{2,3}\.pdf|\.part\d{1,4}\.', '', cleanSubject, re.IGNORECASE)
 	# file sizes - non unique ones
@@ -28,6 +26,10 @@ def collectionsCleaner(subject, type='normal'):
 	# random stuff
 	cleanSubject = re.sub('AutoRarPar\d{1,5}', '', cleanSubject, re.IGNORECASE).strip()
 	cleansubject = re.sub('\s\s+', '', cleanSubject)
+	# Anything between the quotes. Too much variance within the quotes, so remove it completely
+	qSubject = re.sub('\".+\"', '', cleanSubject, re.IGNORECASE)
+	if qSubject is not None:
+		cleanSubject = qSubject
 
 	if type == 'split':
 		one = two = ''
@@ -52,8 +54,10 @@ def collectionsCleaner(subject, type='normal'):
 		if not one and not two:
 			newname = re.sub('[a-z0-9]', '', subject)
 			matches3 = re.search('[\!@#\$%\^&\*\(\)\-={}\[\]\|\\:;\'<>\,\?\/_ ]{1,3}', newname)
-			if matches3:
+			try:
 				return cleansubject+matches3.groups()[0]
+			except:
+				pass
 		else:
 			return cleansubject+one+two
 	else:
